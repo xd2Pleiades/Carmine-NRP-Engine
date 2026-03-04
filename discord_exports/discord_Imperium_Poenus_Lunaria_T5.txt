@@ -1,0 +1,167 @@
+-# [IPL] IMPERIUM POENUS LUNARIA
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Usagi (Dominant), Lunari (Dominant)
+  Population       : 27.945B
+  Pop Growth       : +3.50% / yr
+  Homeworld        : Imperium Prime
+  Civilisation     : Interplanetary Industrial
+  Tier             : 2
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 7.676 Tcr
+  IPEU Growth      : +2.50% / yr
+  IPEU per Capita  : 274 cr
+  Trade Revenue    : 17.991 Tcr
+   - Exports       : 17.991 Tcr
+   - Imports       : 0 cr
+  Total Expenditure: 7.292 Tcr
+  Research Budget  : 307.040 Bcr / turn
+  Net Balance      : 18.374 Tcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                30.0%  ████████████████████  2.303 Tcr
+  Infrastructure          25.0%  █████████████████░░░  1.919 Tcr
+  Industry                20.0%  █████████████░░░░░░░  1.535 Tcr
+  Agriculture              5.0%  ███░░░░░░░░░░░░░░░░░  383.800 Bcr
+  Population Development  10.0%  ███████░░░░░░░░░░░░░  767.600 Bcr
+  Others                   1.0%  █░░░░░░░░░░░░░░░░░░░  76.760 Bcr
+  ─────────────────────────────────────────────────────────────
+  TOTAL                   91.0%                        (7.292 Tcr)
+```
+## ECONOMIC PROJECTS
+```
+  None
+```
+## FISCAL REPORT
+```
+  Debtor/ Creditor     : Creditor
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0%
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Strategic Fund   : 🟢 86.991 Tcr
+  Fund dt this turn: +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 30892.120B
+  Food Production per turn  : 383.80K
+  Food Consumption per turn : 270.000M
+  Food Net per turn         : -269.616M
+  Food Trend                : ▼
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 38.380M
+  Minerals Consumption per turn : 15.352M
+  Minerals Net per turn         : +23.028M
+  Minerals Trend                : ▲
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 3.070M
+  Energy Consumption per turn : 1.842M
+  Energy Net per turn         : +1.228M
+  Energy Trend                : ▲
+```
+```
+  Alloys Stockpile            : 23171.925B
+  Alloys Production per turn  : 0.00
+  Alloys Consumption per turn : 0.00
+  Alloys Net per turn         : +0.00
+  Alloys Trend                : ─
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 614.08K
+  Consumer Goods Consumption per turn : 135.000M
+  Consumer Goods Net per turn         : -134.386M
+  Consumer Goods Trend                : ▼
+```
+# TERRITORIES
+Home System: Imperium System
+```
+  Homeworld: Imperium Prime
+    Population    : 799.200M
+    Settlements   : 1
+      - Imperium Prime Alpha
+        [Residential] x2
+        [Urban] x1
+        [Industrial Civilian] x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 27.945B
+  Loyalty Modifier     : 0.00
+```
+**Usagi**  👑 Dominant
+```
+  Population       : 19.000B
+  Share            : 68.0% - Dominant
+  Growth Rate      : +3.00% / yr
+  Culture          : Lunarius
+  Language         : Verbum Lunarius
+  Religion         : Imperial Cult
+  Loyalty          : 🟢 82/100
+  Happiness        : N/A
+```
+**Lunari**  👑 Dominant
+```
+  Population       : 8.180B
+  Share            : 29.3% - Dominant
+  Growth Rate      : +1.00% / yr
+  Culture          : Lunarius
+  Language         : Verbum Lunarius
+  Religion         : Imperial Cult
+  Loyalty          : 🟢 95/100
+  Happiness        : N/A
+```
+# MILITARY
+## SPACEFLEET
+```
+  Classis Prima
+    - Dreadnaughts | x1 | Green | 0 cr maint
+    - Battlecruiser | x2 | Green | 0 cr maint
+    - Heavy Cruiser | x4 | Green | 0 cr maint
+    - Destroyer | x6 | Green | 0 cr maint
+    - Frigate | x8 | Green | 0 cr maint
+  Classis Secunda
+    - Light Cruiser | x4 | Green | 0 cr maint
+    - Corvette | x8 | Green | 0 cr maint
+    - Transport Vessel | x4 | Green | 0 cr maint
+    - Space patrol Vessels | x6 | Green | 0 cr maint
+```
+## AEROSPACE FORCES
+```
+  Ala I
+    - Fighter Aircrafts | x100 | Green | 0 cr maint
+    - Attack Aircraft | x16 | Green | 0 cr maint
+    - Strategic Bombers | x16 | Green | 0 cr maint
+```
+## GROUND FORCES
+```
+  EXERCITUS I
+    - Mechanized Division | x1 | Green | 0 cr maint
+    - Mechanized Division | x3 | Green | 0 cr maint
+    - Marine Division | x1 | Green | 0 cr maint
+  EXERCITUS II
+    - Mechanized Division | x3 | Green | 0 cr maint
+```
+# RESEARCH
+```
+  RP per turn      : 307.040 Bcr
+  ─────────────────────────────────────────────────────────────
+  Active Projects:
+    None
+  Completed Projects:
+    v Machinator
+    v Adeptus Industria
+    v Classis Invicta
+```

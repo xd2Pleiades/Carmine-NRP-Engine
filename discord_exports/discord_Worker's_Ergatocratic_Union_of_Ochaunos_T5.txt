@@ -1,0 +1,147 @@
+-# [WEUO] WORKER'S ERGATOCRATIC UNION OF OCHAUNOS
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Human (Ochauni) (Dominant)
+  Population       : 8.241B
+  Pop Growth       : +0.50% / yr
+  Homeworld        : Ochaunos Major
+  Civilisation     : Interplanetary Industrial
+  Tier             : 2
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 6.400 Tcr
+  IPEU Growth      : +4.70% / yr
+  IPEU per Capita  : 776 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+  Total Expenditure: 5.504 Tcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 896.000 Bcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                30.0%  ████████████████████  1.920 Tcr
+  Infrastructure          25.0%  █████████████████░░░  1.600 Tcr
+  Industry                10.0%  ███████░░░░░░░░░░░░░  640.000 Bcr
+  Agriculture             10.0%  ███████░░░░░░░░░░░░░  640.000 Bcr
+  Population Development  10.0%  ███████░░░░░░░░░░░░░  640.000 Bcr
+  Others                   1.0%  █░░░░░░░░░░░░░░░░░░░  64.000 Bcr
+  ─────────────────────────────────────────────────────────────
+  TOTAL                   86.0%                        (5.504 Tcr)
+```
+## ECONOMIC PROJECTS
+```
+  None
+```
+## FISCAL REPORT
+```
+  Debtor/ Creditor     : Creditor
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0%
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Strategic Fund   : 🟢 3.584 Tcr
+  Fund dt this turn: +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 25900.636B
+  Food Production per turn  : 640.00K
+  Food Consumption per turn : 82.000M
+  Food Net per turn         : -81.360M
+  Food Trend                : ▼
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 16.000M
+  Minerals Consumption per turn : 6.400M
+  Minerals Net per turn         : +9.600M
+  Minerals Trend                : ▲
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 1.280M
+  Energy Consumption per turn : 768.00K
+  Energy Net per turn         : +512.00K
+  Energy Trend                : ▲
+```
+```
+  Alloys Stockpile            : 2.20K
+  Alloys Production per turn  : 0.00
+  Alloys Consumption per turn : 0.00
+  Alloys Net per turn         : +0.00
+  Alloys Trend                : ─
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 256.00K
+  Consumer Goods Consumption per turn : 41.000M
+  Consumer Goods Net per turn         : -40.744M
+  Consumer Goods Trend                : ▼
+```
+# TERRITORIES
+Home System: Worker's System
+```
+  Homeworld: Ochaunos Major
+    Population    : 8.200B
+    Settlements   : 1
+      - Capital City
+        [Residential] x1
+        [Urban] x1
+        [Industrial Civilian] x1
+        [Industrial Military] x1
+        [Farming] x1
+        [Mining] x1
+        [Energy Plant] x1
+        [Research Lab] x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 8.241B
+  Loyalty Modifier     : 0.00
+```
+**Human (Ochauni)**  👑 Dominant
+```
+  Population       : 16.000B
+  Share            : 194.2% - Dominant
+  Growth Rate      : +0.50% / yr
+  Culture          : Ochauni Guild-Worker
+  Language         : Ochaunos Industrial Common
+  Religion         : Materialism
+  Loyalty          : 🟢 100/100
+  Happiness        : N/A
+```
+# MILITARY
+## SPACEFLEET
+```
+  None on record
+```
+## AEROSPACE FORCES
+```
+  None on record
+```
+## GROUND FORCES
+```
+  None on record
+```
+# RESEARCH
+```
+  RP per turn      : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Active Projects:
+    None
+  Completed Projects:
+    None
+```
+# EVENTS - T5 Q1 [2201]
+```
+  [Civic     ] d20:15  Community Programs    Worker's Ergatocratic Union of Ochaunos: Community Programs  (loyalty +4)
+  [Planetside] d20:13  Stable                Worker's Ergatocratic Union of Ochaunos / Ochaunos Major: Stable
+  [Resource  ] d20: 4  Extraction Issues     Worker's Ergatocratic Union of Ochaunos: Alloys - Extraction Issues  (-7%)
+```

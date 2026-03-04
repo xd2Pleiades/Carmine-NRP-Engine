@@ -2604,7 +2604,7 @@
           "language": "Latin, English, Spanish",
           "religion": "Catholic Christianity, Protestantism and related Christian sects",
           "status": "dominant",
-          "loyalty": 100
+          "loyalty": 79
         },
         {
           "name": "Others",
@@ -2614,7 +2614,7 @@
           "language": "Alien Common",
           "religion": "Rephos",
           "status": "minority",
-          "loyalty": 90
+          "loyalty": 69
         }
       ],
       "unit_groups": [
@@ -2694,14 +2694,14 @@
             {
               "name": "Eden",
               "system": "Regnum D System",
-              "climate": "Temperate",
+              "climate": "Oceanic",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 1000000000.0,
+              "pop_assigned": 249200000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -2728,73 +2728,56 @@
               ],
               "settlements": [
                 {
-                  "name": "Capital City",
-                  "controlling_nation": "Regnum Dei",
-                  "population": 1043904893.0,
-                  "amenities": 60.0,
-                  "loyalty": 80.0,
-                  "attractiveness": 74.75,
-                  "multi_nation_pct": {},
+                  "name": "Eden Alpha",
+                  "population": 124600000,
+                  "loyalty": 63.4,
+                  "amenities": 64.7,
                   "districts": [
                     {
-                      "type": "Residential",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Urban",
+                      "status": "active"
                     },
                     {
                       "type": "Urban",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
                       "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
                       "type": "Mining",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "Eden Beta",
+                  "population": 124600000,
+                  "loyalty": 66.4,
+                  "amenities": 70.9,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
                     },
                     {
-                      "type": "Energy Plant",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Power",
+                      "status": "active"
                     },
                     {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Military",
+                      "status": "active"
                     }
                   ]
                 }
-              ]
+              ],
+              "type": "Terrestrial",
+              "size": "Large",
+              "habitability": 71.2,
+              "devastation": 12.8,
+              "crime_rate": 13.0,
+              "unrest": 7.4
             }
           ],
           "orbital_structures": []
@@ -5331,14 +5314,14 @@
             {
               "name": "Imperium Prime",
               "system": "Imperium System",
-              "climate": "Temperate",
+              "climate": "Arid",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 27000000000.0,
+              "pop_assigned": 799200000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -5365,73 +5348,36 @@
               ],
               "settlements": [
                 {
-                  "name": "Capital City",
-                  "controlling_nation": "Imperium Poenus Lunaria",
-                  "population": 28185432096.0,
-                  "amenities": 60.0,
-                  "loyalty": 80.0,
-                  "attractiveness": 74.75,
-                  "multi_nation_pct": {},
+                  "name": "Imperium Prime Alpha",
+                  "population": 799200000,
+                  "loyalty": 61.9,
+                  "amenities": 41.4,
                   "districts": [
                     {
                       "type": "Residential",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
                     },
                     {
                       "type": "Urban",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
                       "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Mining",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Energy Plant",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     }
                   ]
                 }
-              ]
+              ],
+              "type": "Desert",
+              "size": "Medium",
+              "habitability": 14.8,
+              "devastation": 8.0,
+              "crime_rate": 11.9,
+              "unrest": 15.5
             }
           ],
           "orbital_structures": []
@@ -15401,6 +15347,143 @@
         "Atmospheric Macro-Engineering"
       ],
       "tech_licenses": []
+    }
+  ],
+  "events_log": [
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Worker's Ergatocratic Union of Ochaunos",
+      "roll": 15,
+      "label": "Community Programs",
+      "description": "Worker's Ergatocratic Union of Ochaunos: Community Programs  (loyalty +4)",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Worker's Ergatocratic Union of Ochaunos",
+      "roll": 13,
+      "label": "Stable",
+      "description": "Worker's Ergatocratic Union of Ochaunos / Ochaunos Major: Stable",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Worker's Ergatocratic Union of Ochaunos",
+      "roll": 4,
+      "label": "Extraction Issues",
+      "description": "Worker's Ergatocratic Union of Ochaunos: Alloys - Extraction Issues  (-7%)",
+      "col_rgb": [
+        200,
+        80,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Regnum Dei",
+      "roll": 2,
+      "label": "Mass Exodus",
+      "description": "Regnum Dei: Mass Exodus  (loyalty -17)",
+      "col_rgb": [
+        216,
+        54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Regnum Dei",
+      "roll": 6,
+      "label": "Minor Unrest",
+      "description": "Regnum Dei / Eden: Minor Unrest  unrest+10.9",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Regnum Dei",
+      "roll": 18,
+      "label": "Rich Vein",
+      "description": "Regnum Dei: Minerals - Rich Vein  (+21%)",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Regnum Dei",
+      "roll": 6,
+      "label": "Protests",
+      "description": "Regnum Dei: Protests  (loyalty -4)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Regnum Dei",
+      "roll": 15,
+      "label": "Pop Boom",
+      "description": "Regnum Dei / Eden: Pop Boom",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Regnum Dei",
+      "roll": 6,
+      "label": "Normal Output",
+      "description": "Regnum Dei: Food - Normal Output",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
     }
   ]
 }
