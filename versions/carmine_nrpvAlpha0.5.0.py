@@ -1033,4 +1033,196 @@ class LeftPanel:
 
 class MainPanel:
     def __init__(self):
-        self.rows=[]; self.scroll=Scrollbar(SW-Scrol
+        self.rows=[]; self.scroll=Scrollbar(SW-Scrollbar.W-2,MAIN_Y,MAIN_H)
+        self.edit=EditOverlay(); self.collapsed_keys=set()
+    def set_rows(self,rows):
+        self.rows=rows; total=sum(r["h"] for r in rows)
+        self.scroll.set_content(total,MAIN_H-(self.edit.H if self.edit.active else 0)); self.scroll.scroll=0
+    def _row_rects(self):
+        rects=[]; y=MAIN_Y-int(self.scroll.scroll)
+        for r in self.rows: rects.append(pygame.Rect(MAIN_X,y,MAIN_W-Scrollbar.W,r["h"])); y+=r["h"]
+        return rects
+    def draw(self,surf):
+        clip=pygame.Rect(MAIN_X,MAIN_Y,MAIN_W-Scrollbar.W,MAIN_H-(self.edit.H if self.edit.active else 0))
+        surf.set_clip(clip); f12=gf(12); f11=gf(11); f10=gf(10); f13=gf(13)
+        mx,my=pygame.mouse.get_pos(); rects=self._row_rects()
+        for i,(row,rect) in enumerate(zip(self.rows,rects)):
+            if rect.bottom<MAIN_Y or rect.top>MAIN_Y+MAIN_H: continue
+            rt=row["type"]
+            if rt=="hdr1":
+                draw_rect(surf,rect,(16,28,44)); draw_rect(surf,pygame.Rect(MAIN_X,rect.y,3,rect.h),ACCENT)
+                draw_text(surf,row["txt"],rect.x+10,rect.y+8,f13,BRIGHT,clip)
+            elif rt=="hdr2":
+                draw_rect(surf,rect,(13,22,36)); draw_rect(surf,pygame.Rect(rect.x,rect.bottom-1,rect.w,1),BORDER)
+                draw_text(surf,row["txt"],rect.x+10,rect.y+6,f12,CYAN,clip)
+            elif rt=="collapse":
+                is_hov=rect.collidepoint(mx,my)
+                draw_rect(surf,rect,(18,32,48) if is_hov else (14,24,38))
+                draw_rect(surf,pygame.Rect(rect.x,rect.bottom-1,rect.w,1),BORDER2)
+                draw_rect(surf,pygame.Rect(rect.x,rect.y,3,rect.h),row.get("col",TEAL))
+                draw_text(surf,row["label"],rect.x+10,rect.y+7,f12,row.get("col",TEAL),clip)
+            elif rt=="species_hdr":
+                draw_rect(surf,rect,(14,24,38))
+                draw_text(surf,f"{row['name']}  ({row['status'].title()})",rect.x+10,rect.y+6,f12,GOLD,clip)
+            elif rt=="row":
+                is_edit=bool(row.get("meta"))
+                bg=HOVER if (is_edit and rect.collidepoint(mx,my)) else ((10,18,28) if i%2==0 else BG)
+                draw_rect(surf,rect,bg); draw_text(surf,row["label"],rect.x+8,rect.y+3,f11,DIM,clip)
+                vc=EDITBDR if (is_edit and rect.collidepoint(mx,my)) else row.get("vcol",TEXT)
+                draw_text(surf,row["val"],rect.x+190,rect.y+3,f11,vc,clip)
+            elif rt=="bar":
+                draw_rect(surf,rect,(10,18,28) if i%2==0 else BG)
+                draw_text(surf,row["label"],rect.x+8,rect.y+3,f11,DIM,clip)
+                bx=rect.x+168; by=rect.y+5; bw=100; bh=10
+                draw_rect(surf,pygame.Rect(bx,by,bw,bh),(18,32,50),radius=2)
+                fw=int(row["pct"]*bw)
+                if fw>0: draw_rect(surf,pygame.Rect(bx,by,fw,bh),row.get("vcol",CYAN),radius=2)
+                draw_text(surf,row["txt"],bx+bw+6,rect.y+3,f11,TEXT,clip)
+            elif rt=="btn":
+                is_hov=rect.collidepoint(mx,my); bc=row.get("col") or (28,54,82)
+                bg=tuple(min(255,c+25) for c in bc) if is_hov else bc
+                draw_rect(surf,rect,bg,radius=3); draw_rect(surf,rect,BORDER2,border=1,radius=3)
+                s=f11.render(row["label"],True,BRIGHT); surf.blit(s,s.get_rect(midleft=(rect.x+8,rect.centery)))
+            elif rt=="event_row":
+                draw_rect(surf,rect,(10,18,28) if i%2==0 else BG)
+                draw_text(surf,row["txt"],rect.x+8,rect.y+3,f10,tuple(row["col"]),clip)
+        surf.set_clip(None); self.scroll.draw(surf)
+    def on_click(self,ev):
+        if ev.type!=pygame.MOUSEBUTTONDOWN or ev.button!=1: return None
+        if not (MAIN_X<=ev.pos[0]<SW-Scrollbar.W and MAIN_Y<=ev.pos[1]<MAIN_Y+MAIN_H): return None
+        for row,rect in zip(self.rows,self._row_rects()):
+            if rect.collidepoint(ev.pos):
+                if row["type"]=="btn": return row
+                if row["type"]=="collapse": return row
+                if row.get("meta"): return row
+        return None
+    def on_event(self,ev):
+        mx,my=pygame.mouse.get_pos(); self.scroll.on_event(ev,MAIN_X<=mx<SW and MAIN_Y<=my<MAIN_Y+MAIN_H)
+
+_status_msg=""; _status_col=DIM; _status_time=0.0
+def set_status(msg,col=DIM):
+    global _status_msg,_status_col,_status_time; _status_msg=msg; _status_col=col; _status_time=time.time()
+
+def draw_top_bar(surf,name,turn,year,quarter,dirty):
+    draw_rect(surf,pygame.Rect(LWIDTH,0,SW-LWIDTH,TBAR_H),(10,16,26))
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H-1,SW-LWIDTH,1),BORDER)
+    draw_text(surf,name,LWIDTH+12,10,gf(13,False),BRIGHT)
+    if dirty: draw_text(surf,"UNSAVED",SW-80,12,gf(11),GOLD)
+
+def draw_tab_bar(surf,tab_idx):
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H,SW-LWIDTH,TABBAR_H),(10,16,26))
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H+TABBAR_H-1,SW-LWIDTH,1),BORDER)
+    f10=gf(10); w=(SW-LWIDTH)//len(TABS)
+    for i,tab in enumerate(TABS):
+        tx=LWIDTH+i*w; tr=pygame.Rect(tx,TBAR_H,w,TABBAR_H)
+        if i==tab_idx:
+            draw_rect(surf,tr,(18,36,58)); draw_rect(surf,pygame.Rect(tx,TBAR_H+TABBAR_H-2,w,2),CYAN)
+            s=f10.render(tab,True,BRIGHT)
+        else:
+            if tr.collidepoint(pygame.mouse.get_pos()): draw_rect(surf,tr,HOVER)
+            s=f10.render(tab,True,DIM)
+        surf.blit(s,s.get_rect(center=tr.center))
+
+def draw_status_bar(surf):
+    draw_rect(surf,pygame.Rect(0,SH-SBAR_H,SW,SBAR_H),(8,14,22))
+    draw_rect(surf,pygame.Rect(0,SH-SBAR_H,SW,1),BORDER)
+    age=time.time()-_status_time; col=_status_col if age<3.0 else DIM
+    draw_text(surf,_status_msg if age<5.0 else "Ready",10,SH-SBAR_H+4,gf(10),col)
+    draw_text(surf,"S=save  D=discord  Arrows=nation  Tab/1-7=tab  Click▶/▼=collapse",SW-450,SH-SBAR_H+4,gf(10),DIM2)
+
+def main():
+    filepath=sys.argv[1] if len(sys.argv)>1 else DEFAULT_STATE
+    sm=StateManager(filepath)
+    if not sm.load(): sys.exit(f"[FATAL] Cannot load: {filepath}")
+    pygame.init(); pygame.display.set_caption("Carmine NRP Engine - vAlpha0.5.0")
+    surf=pygame.display.set_mode((SW,SH)); clock=pygame.time.Clock()
+    left=LeftPanel(); main_=MainPanel()
+    names=sm.nation_names(); sel_idx=0; tab_idx=0
+    left.set_nations(names,sel_idx)
+
+    def load_nation(idx):
+        nonlocal sel_idx; sel_idx=max(0,min(idx,len(names)-1)); left.selected=sel_idx
+        n=sm.get_nation(names[sel_idx])
+        if n: main_.set_rows(build_rows(n,sm.state,TABS[tab_idx],main_.collapsed_keys))
+
+    def do_discord():
+        n=sm.get_nation(names[sel_idx])
+        if n: path=_discord_export(n,sm.state); set_status(f"Discord -> {path}",CYAN)
+
+    load_nation(0); set_status(f"Carmine v0.5.0 loaded: {filepath}",CYAN)
+    running=True
+    while running:
+        dt=clock.tick(FPS)/1000.0
+        for ev in pygame.event.get():
+            if ev.type==pygame.QUIT: running=False
+            if main_.edit.active:
+                result=main_.edit.on_event(ev)
+                if result is not None:
+                    n=sm.get_nation(names[sel_idx])
+                    if n and apply_edit(n,main_.edit.meta,result):
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Saved.",GREEN)
+                elif ev.type==pygame.KEYDOWN and ev.key==pygame.K_ESCAPE: main_.edit.close()
+                continue
+            if ev.type==pygame.KEYDOWN:
+                if ev.key==pygame.K_s: sm.save(); set_status("Saved with backup rotation.",GREEN)
+                elif ev.key==pygame.K_d: do_discord()
+                elif ev.key in (pygame.K_UP,pygame.K_LEFT): load_nation(sel_idx-1)
+                elif ev.key in (pygame.K_DOWN,pygame.K_RIGHT): load_nation(sel_idx+1)
+                elif ev.key==pygame.K_TAB: tab_idx=(tab_idx+1)%len(TABS); load_nation(sel_idx)
+                elif pygame.K_1<=ev.key<=pygame.K_7: tab_idx=ev.key-pygame.K_1; load_nation(sel_idx)
+            if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
+                if LWIDTH<=ev.pos[0]<SW and TBAR_H<=ev.pos[1]<TBAR_H+TABBAR_H:
+                    w=(SW-LWIDTH)//len(TABS); ti=(ev.pos[0]-LWIDTH)//w
+                    if 0<=ti<len(TABS): tab_idx=ti; load_nation(sel_idx)
+            clicked=left.on_event(ev)
+            if clicked is not None: load_nation(clicked)
+            if left.btn_minus.on_event(ev): left.adv_n=max(1,left.adv_n-1)
+            if left.btn_plus.on_event(ev): left.adv_n=min(20,left.adv_n+1)
+            if left.btn_adv.on_event(ev):
+                evs=advance_turns(sm,left.adv_n); names=sm.nation_names(); left.set_nations(names,sel_idx); load_nation(sel_idx)
+                t=sm.state.get("turn",1); y=sm.state.get("year",2200); q=sm.state.get("quarter",1)
+                set_status(f"Advanced {left.adv_n}t -> T{t} {y}Q{q}  |  {len(evs)} events",GOLD)
+            if left.btn_save.on_event(ev): sm.save(); set_status("Saved.",GREEN)
+            if left.btn_disc.on_event(ev): do_discord()
+            main_.on_event(ev)
+            row=main_.on_click(ev)
+            if row:
+                if row["type"]=="collapse":
+                    key=row["key"]
+                    if key in main_.collapsed_keys: main_.collapsed_keys.discard(key)
+                    else: main_.collapsed_keys.add(key)
+                    load_nation(sel_idx)
+                elif row["type"]=="btn":
+                    action=row["action"]; data=row.get("data",{}); n=sm.get_nation(names[sel_idx])
+                    if action=="add_system" and n:
+                        add_system(n); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("New system added.",GREEN)
+                    elif action=="add_planet" and n:
+                        sl=n.get("star_systems",[]); si=data.get("si",0)
+                        if si<len(sl): add_planet(sl[si],n.get("population",0)); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Planet added + randomized.",GREEN)
+                    elif action=="add_platform" and n:
+                        si=data.get("si",0); pi=data.get("pi",0); ptype=data.get("ptype","Mining")
+                        sl=n.get("star_systems",[])
+                        if si<len(sl):
+                            pl=sl[si].get("planets",[])
+                            if pi<len(pl): add_platform(pl[pi],ptype); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status(f"{ptype} platform added.",PURPLE)
+                    elif action=="randomize_planet" and n:
+                        si=data.get("si",0); pi=data.get("pi",0); sl=n.get("star_systems",[])
+                        if si<len(sl):
+                            pl=sl[si].get("planets",[])
+                            if pi<len(pl): randomize_planet(pl[pi],n.get("population",0)); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Planet randomized.",PURPLE)
+                    elif action=="roll_events":
+                        n2=sm.get_nation(data.get("nation",""))
+                        if n2:
+                            evs=roll_civic_events(n2,sm.state)+roll_planetside_events(n2,sm.state)+roll_resource_events(n2,sm.state)
+                            sm.state.setdefault("events_log",[]).extend(evs); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status(f"Rolled {len(evs)} events for {data.get('nation','?')}.",GOLD)
+                elif row.get("meta"): main_.edit.open(row["label"],row["val"],row["meta"])
+        surf.fill(BG)
+        turn=sm.state.get("turn",1); year=sm.state.get("year",2200); quarter=sm.state.get("quarter",1)
+        draw_top_bar(surf,names[sel_idx] if names else "N/A",turn,year,quarter,sm.dirty)
+        draw_tab_bar(surf,tab_idx); left.draw(surf,turn,year,quarter); main_.draw(surf)
+        main_.edit.draw(surf,dt); draw_status_bar(surf); pygame.display.flip()
+    pygame.quit()
+
+if __name__=="__main__":
+    main()

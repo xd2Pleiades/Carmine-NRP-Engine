@@ -766,7 +766,7 @@
           "language": "Galatic Common",
           "religion": "Pantheon of Coin",
           "status": "dominant",
-          "loyalty": 85
+          "loyalty": 70
         },
         {
           "name": "Varek",
@@ -776,7 +776,7 @@
           "language": "Galactic Common",
           "religion": "Pantheon of Coin",
           "status": "minority",
-          "loyalty": 85
+          "loyalty": 70
         },
         {
           "name": "Cethari",
@@ -786,7 +786,7 @@
           "language": "Galactic Common",
           "religion": "The Deep Resonance",
           "status": "minority",
-          "loyalty": 100
+          "loyalty": 85
         }
       ],
       "unit_groups": [],
@@ -927,8 +927,51 @@
               "size": "Huge",
               "habitability": 27.0,
               "devastation": 10.1,
-              "crime_rate": 5.4,
-              "unrest": 18.4
+              "crime_rate": 0,
+              "unrest": 19.05
+            },
+            {
+              "name": "Trade Co System Beta",
+              "type": "Gas Giant",
+              "size": "Huge",
+              "climate": "Temperate",
+              "habitability": 79.1,
+              "devastation": 14.7,
+              "crime_rate": 14.4,
+              "unrest": 11.1,
+              "pop_assigned": 395500000,
+              "settlements": [
+                {
+                  "name": "Trade Co System Beta Alpha",
+                  "population": 395500000,
+                  "loyalty": 61.9,
+                  "amenities": 74.4,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
             }
           ],
           "orbital_structures": []
@@ -1112,6 +1155,171 @@
                   ]
                 }
               ]
+            },
+            {
+              "name": "System Beta Delta",
+              "type": "Desert",
+              "size": "Small",
+              "climate": "Arctic",
+              "habitability": 17.7,
+              "devastation": 10.2,
+              "crime_rate": 9.1,
+              "unrest": 16.0,
+              "pop_assigned": 17700000,
+              "settlements": [
+                {
+                  "name": "System Beta Delta Alpha",
+                  "population": 5900000,
+                  "loyalty": 60.1,
+                  "amenities": 49.8,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System Beta Delta Beta",
+                  "population": 5900000,
+                  "loyalty": 53.9,
+                  "amenities": 75.0,
+                  "districts": [
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System Beta Delta Gamma",
+                  "population": 5900000,
+                  "loyalty": 82.7,
+                  "amenities": 78.4,
+                  "districts": [
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            },
+            {
+              "name": "System Beta Epsilon",
+              "type": "Gas Giant",
+              "size": "Medium",
+              "climate": "Toxic",
+              "habitability": 28.0,
+              "devastation": 3.2,
+              "crime_rate": 11.7,
+              "unrest": 17.0,
+              "pop_assigned": 56000000,
+              "settlements": [
+                {
+                  "name": "System Beta Epsilon Alpha",
+                  "population": 56000000,
+                  "loyalty": 78.7,
+                  "amenities": 68.5,
+                  "districts": [
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
             }
           ]
         },
@@ -1757,7 +1965,180 @@
           "name": "System Secundus",
           "notes": "",
           "coordinates": "",
-          "planets": []
+          "planets": [
+            {
+              "name": "System Secundus Alpha",
+              "type": "Arctic",
+              "size": "Medium",
+              "climate": "Arid",
+              "habitability": 15.4,
+              "devastation": 11.3,
+              "crime_rate": 12.8,
+              "unrest": 7.8,
+              "pop_assigned": 30800000,
+              "settlements": [
+                {
+                  "name": "System Secundus Alpha Alpha",
+                  "population": 15400000,
+                  "loyalty": 58.8,
+                  "amenities": 68.9,
+                  "districts": [
+                    {
+                      "type": "Energy Plant",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System Secundus Alpha Beta",
+                  "population": 15400000,
+                  "loyalty": 51.7,
+                  "amenities": 42.4,
+                  "districts": [
+                    {
+                      "type": "Residential",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            },
+            {
+              "name": "System Secundus Beta",
+              "type": "Desert",
+              "size": "Huge",
+              "climate": "Arctic",
+              "habitability": 89.4,
+              "devastation": 9.6,
+              "crime_rate": 14.4,
+              "unrest": 14.6,
+              "pop_assigned": 447000000,
+              "settlements": [
+                {
+                  "name": "System Secundus Beta Alpha",
+                  "population": 223500000,
+                  "loyalty": 70.2,
+                  "amenities": 46.8,
+                  "districts": [
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System Secundus Beta Beta",
+                  "population": 223500000,
+                  "loyalty": 60.7,
+                  "amenities": 72.9,
+                  "districts": [
+                    {
+                      "type": "Energy Plant",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            }
+          ]
         },
         {
           "name": "System Tertius",
@@ -1835,13 +2216,244 @@
           "name": "System IV",
           "notes": "",
           "coordinates": "",
-          "planets": []
+          "planets": [
+            {
+              "name": "System IV Alpha",
+              "type": "Terrestrial",
+              "size": "Small",
+              "climate": "Arid",
+              "habitability": 29.6,
+              "devastation": 12.3,
+              "crime_rate": 22.3,
+              "unrest": 13.5,
+              "pop_assigned": 29600000,
+              "settlements": [
+                {
+                  "name": "System IV Alpha Alpha",
+                  "population": 9866667,
+                  "loyalty": 84.1,
+                  "amenities": 63.7,
+                  "districts": [
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System IV Alpha Beta",
+                  "population": 9866667,
+                  "loyalty": 58.4,
+                  "amenities": 59.1,
+                  "districts": [
+                    {
+                      "type": "Energy Plant",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System IV Alpha Gamma",
+                  "population": 9866667,
+                  "loyalty": 57.9,
+                  "amenities": 79.9,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Energy Plant",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            }
+          ]
         },
         {
           "name": "System V",
           "notes": "",
           "coordinates": "",
-          "planets": []
+          "planets": [
+            {
+              "name": "System V Alpha",
+              "type": "Gas Giant",
+              "size": "Small",
+              "climate": "Arid",
+              "habitability": 21.4,
+              "devastation": 11.7,
+              "crime_rate": 8.2,
+              "unrest": 12.5,
+              "pop_assigned": 21400000,
+              "settlements": [
+                {
+                  "name": "System V Alpha Alpha",
+                  "population": 10700000,
+                  "loyalty": 67.5,
+                  "amenities": 40.8,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                },
+                {
+                  "name": "System V Alpha Beta",
+                  "population": 10700000,
+                  "loyalty": 82.9,
+                  "amenities": 45.0,
+                  "districts": [
+                    {
+                      "type": "Energy Plant",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            }
+          ]
         },
         {
           "name": "System VI",
@@ -17456,6 +18068,141 @@
       "col_rgb": [
         216,
         54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Trade Confederation",
+      "roll": 6,
+      "label": "Protests",
+      "description": "Trade Confederation: Protests  (loyalty -2)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Trade Confederation",
+      "roll": 18,
+      "label": "Crime Crackdown",
+      "description": "Trade Confederation / Dominum Aetheris: Crime Crackdown  crime_rate-6.8",
+      "col_rgb": [
+        0,
+        190,
+        214
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Trade Confederation",
+      "roll": 19,
+      "label": "Motherlode",
+      "description": "Trade Confederation: Energy - Motherlode  (+29%)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Trade Confederation",
+      "roll": 2,
+      "label": "Mass Exodus",
+      "description": "Trade Confederation: Mass Exodus  (loyalty -18)",
+      "col_rgb": [
+        216,
+        54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Trade Confederation",
+      "roll": 5,
+      "label": "Minor Unrest",
+      "description": "Trade Confederation / Dominum Aetheris: Minor Unrest  unrest+13.5",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Trade Confederation",
+      "roll": 12,
+      "label": "Normal Output",
+      "description": "Trade Confederation: Alloys - Normal Output",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Trade Confederation",
+      "roll": 15,
+      "label": "Community Programs",
+      "description": "Trade Confederation: Community Programs  (loyalty +5)",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Trade Confederation",
+      "roll": 20,
+      "label": "Golden Age",
+      "description": "Trade Confederation / Dominum Aetheris: Golden Age  unrest-12.9  crime_rate-7.3",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Trade Confederation",
+      "roll": 5,
+      "label": "Extraction Issues",
+      "description": "Trade Confederation: Minerals - Extraction Issues  (-15%)",
+      "col_rgb": [
+        200,
+        80,
         40
       ]
     }
