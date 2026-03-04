@@ -594,7 +594,8 @@
       "unit_transport": {},
       "active_research_projects": [],
       "completed_techs": [],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "MIXED"
     },
     {
       "name": "Trade Confederation",
@@ -3275,7 +3276,51 @@
           "name": "System IV",
           "notes": "",
           "coordinates": "",
-          "planets": []
+          "planets": [
+            {
+              "name": "System IV Alpha",
+              "type": "Jungle",
+              "size": "Medium",
+              "climate": "Oceanic",
+              "habitability": 81.8,
+              "devastation": 2.4,
+              "crime_rate": 4.6,
+              "unrest": 9.3,
+              "pop_assigned": 163600000,
+              "settlements": [
+                {
+                  "name": "System IV Alpha Alpha",
+                  "population": 163600000,
+                  "loyalty": 62.9,
+                  "amenities": 47.5,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            }
+          ]
         }
       ],
       "is_colony_start": false,
@@ -3299,7 +3344,8 @@
       "unit_transport": {},
       "active_research_projects": [],
       "completed_techs": [],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "MARKET"
     },
     {
       "name": "Avinish Hive",
@@ -7846,14 +7892,14 @@
             {
               "name": "Imperium Prime",
               "system": "Imperium System",
-              "climate": "Arid",
+              "climate": "Oceanic",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 799200000,
+              "pop_assigned": 2238300000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -7881,35 +7927,162 @@
               "settlements": [
                 {
                   "name": "Imperium Prime Alpha",
-                  "population": 799200000,
-                  "loyalty": 61.9,
-                  "amenities": 41.4,
+                  "population": 2238300000,
+                  "loyalty": 75.4,
+                  "amenities": 57.9,
                   "districts": [
                     {
                       "type": "Residential",
-                      "status": "active"
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
                     },
                     {
-                      "type": "Residential",
-                      "status": "active"
-                    },
-                    {
-                      "type": "Urban",
-                      "status": "active"
-                    },
-                    {
-                      "type": "Industrial Civilian",
-                      "status": "active"
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
                     }
                   ]
                 }
               ],
-              "type": "Desert",
-              "size": "Medium",
-              "habitability": 14.8,
-              "devastation": 8.0,
-              "crime_rate": 11.9,
-              "unrest": 15.5
+              "type": "Jungle",
+              "size": "Small",
+              "habitability": 82.9,
+              "devastation": 9.0,
+              "crime_rate": 11.6,
+              "unrest": 1.9,
+              "platforms": []
+            },
+            {
+              "name": "Imperium System Beta",
+              "type": "Ocean",
+              "size": "Large",
+              "climate": "Desert",
+              "habitability": 82.0,
+              "devastation": 12.3,
+              "crime_rate": 17.4,
+              "unrest": 15.0,
+              "pop_assigned": 7749000000,
+              "settlements": [
+                {
+                  "name": "Imperium System Beta Alpha",
+                  "population": 7749000000,
+                  "loyalty": 52.4,
+                  "amenities": 78.2,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Research Lab",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
+            },
+            {
+              "name": "Imperium System Gamma",
+              "type": "Arid",
+              "size": "Tiny",
+              "climate": "Oceanic",
+              "habitability": 23.7,
+              "devastation": 14.1,
+              "crime_rate": 5.3,
+              "unrest": 11.9,
+              "pop_assigned": 319950000,
+              "settlements": [
+                {
+                  "name": "Imperium System Gamma Alpha",
+                  "population": 319950000,
+                  "loyalty": 66.3,
+                  "amenities": 47.9,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
             }
           ],
           "orbital_structures": []

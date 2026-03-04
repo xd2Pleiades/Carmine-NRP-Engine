@@ -18,6 +18,7 @@
   Trade Revenue    : 0 cr
    - Exports       : 0 cr
    - Imports       : 0 cr
+  Local Mkt Tax    : 299.376 Mcr
   Total Expenditure: 6.295 Tcr
   Research Budget  : 0 cr / turn
   Net Balance      : 1.025 Tcr
@@ -33,9 +34,12 @@
   ─────────────────────────────────────────────────────────────
   TOTAL                   86.0%                        (6.295 Tcr)
 ```
-## ECONOMIC PROJECTS
+## SPENDING EFFECTS
 ```
-  None
+  Infra Trade Bonus    : +50.0% attractiveness
+  PopDev Growth Bonus  : +0.050% pop growth/yr
+  Military Morale      : +45.0%
+  Combat Power Index   : 2.196 Tcr
 ```
 ## FISCAL REPORT
 ```
@@ -52,30 +56,34 @@
 ## RESOURCES & STOCKPILES
 ```
   Food Stockpile            : 29458.990B
-  Food Production per turn  : 732.00K
-  Food Consumption per turn : 280.000M
-  Food Net per turn         : -279.268M
-  Food Trend                : ▼
+  Food Production per turn  : 40.000M
+  Food Consumption per turn : 28.000M
+  Food Net per turn         : +12.000M
+  Food Export Revenue       : 0 cr
+  Food Trend                : ▲
 ```
 ```
   Minerals Stockpile            : 3.60K
-  Minerals Production per turn  : 18.300M
-  Minerals Consumption per turn : 7.320M
-  Minerals Net per turn         : +10.980M
+  Minerals Production per turn  : 40.000M
+  Minerals Consumption per turn : 0.00
+  Minerals Net per turn         : +40.000M
+  Minerals Export Revenue       : 0 cr
   Minerals Trend                : ▲
 ```
 ```
   Energy Stockpile            : 2.00K
-  Energy Production per turn  : 1.464M
-  Energy Consumption per turn : 878.40K
-  Energy Net per turn         : +585.60K
-  Energy Trend                : ▲
+  Energy Production per turn  : 0.00
+  Energy Consumption per turn : 14.600M
+  Energy Net per turn         : -14.600M
+  Energy Export Revenue       : 0 cr
+  Energy Trend                : ▼
 ```
 ```
   Alloys Stockpile            : 2.20K
   Alloys Production per turn  : 0.00
   Alloys Consumption per turn : 0.00
   Alloys Net per turn         : +0.00
+  Alloys Export Revenue       : 0 cr
   Alloys Trend                : ─
 ```
 ```
@@ -83,66 +91,59 @@
   Consumer Goods Production per turn  : 292.80K
   Consumer Goods Consumption per turn : 140.000M
   Consumer Goods Net per turn         : -139.707M
+  Consumer Goods Export Revenue       : 0 cr
   Consumer Goods Trend                : ▼
 ```
 # TERRITORIES
-Home System: Union of System
+
+System: Union of System
 ```
-  Homeworld: Union of Prime
-    Population    : 680.400M
-    Settlements   : 1
-      - Union of Prime Alpha
+  Planet: Union of Prime
+    Type/Size/Climate : Jungle / Small / Arid
+    Habitability      : 24.3
+    Devastation/Unrest: 14.2 / 5.0
+    Crime Rate        : 4.0
+    Population        : 680.400M
+      Settlement: Union of Prime Alpha  Pop 680.400M
         [Agricultural] x1
         [Mining] x2
 ```
 # NATIONAL DEMOGRAPHICS
 ```
   Total Population     : 29.002B
-  Loyalty Modifier     : 0.00
+  Avg Loyalty          : 97.4/100
 ```
 **Human**  👑 Dominant
 ```
-  Population       : 22.900B
-  Share            : 79.0% - Dominant
-  Growth Rate      : +4.00% / yr
-  Culture          : Germanic/Nordic/Russo
-  Language         : German/English/Russian
-  Religion         : State Atheism
-  Loyalty          : 🟢 100/100
-  Happiness        : N/A
+  Population : 22.900B
+  Share      : 79.0% - Dominant
+  Culture    : Germanic/Nordic/Russo  |  Language: German/English/Russian  |  Religion: State Atheism
+  Loyalty    : 🟢 100/100
+  Happiness  : 0/100
 ```
 **Enhanced Humanoid**  👥 Minority
 ```
-  Population       : 3.920B
-  Share            : 13.5% - Minority
-  Growth Rate      : +1.00% / yr
-  Culture          : Germanic/Nordic/Russo
-  Language         : German/English/Russian
-  Religion         : State Atheism
-  Loyalty          : 🟢 100/100
-  Happiness        : N/A
+  Population : 3.920B
+  Share      : 13.5% - Minority
+  Culture    : Germanic/Nordic/Russo  |  Language: German/English/Russian  |  Religion: State Atheism
+  Loyalty    : 🟢 100/100
+  Happiness  : 0/100
 ```
 **Human (C)**  👥 Minority
 ```
-  Population       : 610.000M
-  Share            : 2.1% - Minority
-  Growth Rate      : +4.00% / yr
-  Culture          : Germanic/Nordic/Russo
-  Language         : German/English/Russian
-  Religion         : Illegal Christian
-  Loyalty          : 🟡 45/100
-  Happiness        : N/A
+  Population : 610.000M
+  Share      : 2.1% - Minority
+  Culture    : Germanic/Nordic/Russo  |  Language: German/English/Russian  |  Religion: Illegal Christian
+  Loyalty    : 🟡 45/100
+  Happiness  : 0/100
 ```
 **Human (M)**  👥 Minority
 ```
-  Population       : 570.000M
-  Share            : 2.0% - Minority
-  Growth Rate      : +4.00% / yr
-  Culture          : Germanic/Nordic/Russo
-  Language         : German/English/Russian
-  Religion         : Illegal Muslim
-  Loyalty          : 🔴 30/100
-  Happiness        : N/A
+  Population : 570.000M
+  Share      : 2.0% - Minority
+  Culture    : Germanic/Nordic/Russo  |  Language: German/English/Russian  |  Religion: Illegal Muslim
+  Loyalty    : 🔴 30/100
+  Happiness  : 0/100
 ```
 # MILITARY
 ## SPACEFLEET
@@ -182,18 +183,17 @@ Home System: Union of System
 ```
 # RESEARCH
 ```
-  RP per turn      : 0 cr
-  ─────────────────────────────────────────────────────────────
-  Active Projects:
+  RP per turn : 0 cr
+  Active:
     None
-  Completed Projects:
+  Completed:
     v Macro-Scale Orbital Forges
     v Bio-Synthetic Resilience Augmentation
     v Kinetic Slingshot Arrays
 ```
 # EVENTS - T5 Q1 [2201]
 ```
-  [Civic     ] d20: 9  Civic Stability       Union of the Red Horizon: Civic Stability
-  [Planetside] d20:20  Golden Age            Union of the Red Horizon / Union of Prime: Golden Age  unrest-10.5  crime_rate-6.6
-  [Resource  ] d20: 2  Resource Depletion    Union of the Red Horizon: Food - Resource Depletion  (-26%)
+  [Civic     ]     9  Civic Stability       Union of the Red Horizon: Civic Stability
+  [Planetside]    20  Golden Age            Union of the Red Horizon / Union of Prime: Golden Age  unrest-10.5  crime_rate-6.6
+  [Resource  ]     2  Resource Depletion    Union of the Red Horizon: Food - Resource Depletion  (-26%)
 ```
