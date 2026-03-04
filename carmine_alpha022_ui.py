@@ -1,1486 +1,2546 @@
-#!/usr/bin/env python3
-"""
-Carmine NRP Engine — vAlpha0.2.2 UI
-Pygame GM Tool  |  1280 × 720  |  Sci-Fi Dark Theme
-Run: python3 carmine_alpha022_ui.py [state_file.json]
-
-Requires carmine_alpha022.py in the same directory.
-"""
-
-import pygame
-import sys, os, json, math, time
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ENGINE IMPORT
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-try:
-    from carmine_alpha022 import (
-        StateManager, years_elapsed, current_ipeu,
-        current_population, compute_trade, compute_resources,
-        compute_debt, fmt_cr, fmt_pop, fmt_res,
-        initialize_settlements,
-    )
-except ImportError:
-    sys.exit(
-        "[FATAL] carmine_alpha022.py not found.\n"
-        "Place carmine_alpha022_ui.py in the same directory as carmine_alpha022.py"
-    )
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# LAYOUT
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SW, SH   = 1280, 720
-LWIDTH   = 272          # left sidebar
-TBAR_H   = 46           # top bar
-SBAR_H   = 26           # status bar
-SCRL_W   = 10           # scrollbar width
-MAIN_X   = LWIDTH
-MAIN_Y   = TBAR_H
-MAIN_W   = SW - LWIDTH - SCRL_W
-MAIN_H   = SH - TBAR_H - SBAR_H
-FPS      = 60
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# COLOUR PALETTE — Carmine Sci-Fi Dark
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-BG        = (  8, 12, 20)
-PANEL     = ( 11, 17, 27)
-PANEL2    = ( 15, 23, 35)
-PANEL3    = ( 18, 28, 42)
-BLOCK_BG  = (  7, 13, 21)
-BLOCK_ALT = (  9, 16, 25)
-BORDER    = ( 26, 50, 76)
-BORDER2   = ( 42, 82,122)
-ACCENT    = (190, 38, 25)    # Carmine red
-ACCENT2   = (130, 22, 16)
-CYAN      = (  0,190,214)
-TEAL      = (  0,138,158)
-TEAL2     = (  0,100,118)
-TEXT      = (198,226,246)
-DIM       = ( 84,114,136)
-DIM2      = ( 55, 80,100)
-BRIGHT    = (238,248,255)
-GREEN     = ( 22,184, 82)
-GREEN2    = ( 14,120, 54)
-RED_C     = (216, 54, 40)
-RED2      = (140, 28, 20)
-GOLD      = (198,150, 22)
-GOLD2     = (140,100, 12)
-SELECTED  = ( 18, 40, 65)
-HOVER     = ( 14, 30, 50)
-EDITBG    = (  5, 14, 28)
-EDITBDR   = (  0,172,194)
-SCRLBG    = (  9, 17, 27)
-SCRLTMB   = ( 38, 76,116)
-BTNBG     = ( 18, 36, 56)
-BTNHOV    = ( 28, 54, 82)
-BTNACC    = (130, 24, 16)
-BTNACC_H  = (190, 38, 25)
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# RENDER ITEM TYPES
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TN_HDR  = "nation_hdr"
-T_HDR1  = "hdr1"
-T_HDR2  = "hdr2"
-T_ROW   = "row"
-T_BAR   = "bar"
-T_SEP   = "sep"
-T_SPC   = "spc"
-T_SPHDR = "species_hdr"
-T_DEBT  = "debt_bar"
-
-ROW_H   = 22
-HDR1_H  = 36
-HDR2_H  = 30
-NHDR_H  = 62
-SPC_H   =  8
-SEP_H   = 10
-BAR_H   = 22
-SPHDR_H = 28
-DEBT_H  = 22
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# HELPERS
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def nation_tag(name: str) -> str:
-    """Derive 2-4 char abbreviation."""
-    stop = {"of","the","and","or","for","in","to","a","an",
-             "des","du","de","von","van"}
-    words = [w for w in name.split() if w.lower() not in stop and w.isalpha()]
-    tag = "".join(w[0].upper() for w in words[:4])
-    return tag if tag else name[:3].upper()
-
-
-def fmt_int(v: float) -> str:
-    """Format as comma-separated integer."""
-    return f"{int(v):,}"
-
-
-def fmt_pct_plus(v: float) -> str:
-    return f"+{v*100:.1f}%" if v >= 0 else f"{v*100:.1f}%"
-
-
-def loyalty_bar(score: float, width: int = 20) -> str:
-    pct    = max(0.0, min(1.0, score / 100.0))
-    filled = round(pct * width)
-    return "█" * filled + "░" * (width - filled)
-
-
-def debt_bar_str(pct: float, width: int = 20) -> str:
-    filled = round(min(1.0, pct) * width)
-    return "▓" * filled + "░" * (width - filled)
-
-
-def exp_bar_str(pct: float, width: int = 16) -> str:
-    filled = round(pct * width)
-    return "█" * filled + "░" * (width - filled)
-
-
-def resource_export_credits(nation_name: str, resource: str, routes: list) -> float:
-    total = 0.0
-    for route in routes:
-        if route.get("status") != "active":
-            continue
-        if route.get("exporter") == nation_name and route.get("resource") == resource:
-            credits = route.get("credits_per_turn", 0.0)
-            tax_out = sum(credits * t.get("tax_rate", 0.0)
-                          for t in route.get("transit_nations", [])
-                          if t.get("status") == "active")
-            total += credits - tax_out
-    return total
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PROFILE → RENDER ITEM LIST
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def build_render_items(nation: dict, state: dict) -> List[dict]:
-    items: List[dict] = []
-    y = 8  # top padding
-
-    def add(item: dict):
-        nonlocal y
-        item["y"] = y
-        items.append(item)
-        y += item["h"]
-
-    ye        = years_elapsed(state)
-    ipeu_base = nation.get("base_ipeu", 0.0)
-    pop       = current_population(nation, ye)
-    exp_dict  = nation.get("expenditure", {})
-    routes    = state.get("trade_routes", [])
-    trade     = compute_trade(nation, routes)
-    res_d     = compute_resources(nation, ipeu_base)
-    debt_d    = compute_debt(nation, ipeu_base)
-    rbudget   = nation.get("research_budget", 0.0)
-    sfund     = nation.get("strategic_fund", 0.0)
-    star_sys  = nation.get("star_systems", [])
-    species   = nation.get("species_populations", [])
-    projects  = nation.get("projects", [])
-    afd       = nation.get("active_forces_detail", [])
-    ug_map    = {u["ugid"]: u for u in nation.get("unit_groups", [])}
-    comp_tech = nation.get("completed_techs", [])
-    act_res   = nation.get("active_research_projects", [])
-
-    civ_level = nation.get("civ_level",  "Interplanetary Industrial")
-    civ_tier  = nation.get("civ_tier",   2)
-    eco_status= nation.get("eco_status", "Stable")
-    tag       = nation_tag(nation["name"])
-
-    # Homeworld from star_systems
-    homeworld = "—"
-    for sys in star_sys:
-        for planet in sys.get("planets", []):
-            homeworld = planet["name"]
-            break
-        break
-
-    total_exp  = sum(exp_dict.values()) * ipeu_base + rbudget
-    net_bal    = ipeu_base + trade["net"] - total_exp - debt_d["q_interest"]
-    export_cr  = trade["exports"] + trade["transit_income"]
-    fund_delta = -debt_d["q_interest"]
-
-    def em(path, etype, key=None):
-        raw = nation.get(key or path[-1], 0) if key != "_none" else 0
-        return {"path": path, "type": etype, "raw": raw}
-
-    # ── NATION HEADER ────────────────────────────────────
-    add({"type": TN_HDR, "h": NHDR_H, "tag": tag, "name": nation["name"]})
-    add({"type": T_SPC,  "h": SPC_H})
-
-    # ── PROFILE OVERVIEW ─────────────────────────────────
-    species_str = ", ".join(s["name"] for s in species) if species else "—"
-    PROF = [
-        ("Species",       species_str,                                          None,               None),
-        ("Population",    fmt_pop(pop),                                         "population",       "pop"),
-        ("Pop Growth",    fmt_pct_plus(nation.get("pop_growth",0)) + " / yr",  "pop_growth",       "pct"),
-        ("Homeworld",     homeworld,                                             None,               None),
-        ("Civilisation",  civ_level,                                             "civ_level",        "str"),
-        ("Tier",          str(civ_tier),                                         "civ_tier",         "int"),
-        ("Status",        eco_status,                                            "eco_status",       "str"),
-    ]
-    for label, value, key, etype in PROF:
-        meta = {"path": [key], "type": etype, "raw": nation.get(key, value)} if key else None
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": label, "value": value, "label_w": 16,
-             "editable": meta is not None, "edit_meta": meta,
-             "val_color": CYAN if key else TEXT})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── # ECONOMY ────────────────────────────────────────
-    add({"type": T_HDR1, "h": HDR1_H, "text": "# ECONOMY"})
-    per_cap = (ipeu_base / pop) if pop else 0
-    ECO = [
-        ("IPEU (base)",        fmt_cr(ipeu_base),                                           "base_ipeu",      "float"),
-        ("IPEU Growth",        fmt_pct_plus(nation.get("ipeu_growth",0)) + " / yr",         "ipeu_growth",    "pct"),
-        ("IPEU per Capita",    f"{int(per_cap):,} cr",                                      None,             None),
-        ("Export Credits",     fmt_cr(export_cr),                                           None,             None),
-        ("Total Expenditure",  f"{fmt_cr(total_exp)}  ({sum(exp_dict.values())*100:.1f}%)", None,             None),
-        ("Research Budget",    fmt_cr(rbudget) + " / turn",                                 "research_budget","float"),
-        ("Net Balance",        fmt_cr(net_bal),                                             None,             None),
-    ]
-    for label, value, key, etype in ECO:
-        meta  = {"path": [key], "type": etype, "raw": nation.get(key, 0)} if key else None
-        vcol  = (GREEN if net_bal >= 0 else RED_C) if label == "Net Balance" else (CYAN if key else TEXT)
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": label, "value": value, "label_w": 18,
-             "editable": meta is not None, "edit_meta": meta, "val_color": vcol})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── ## EXPENDITURE ───────────────────────────────────
-    add({"type": T_HDR2, "h": HDR2_H, "text": "## EXPENDITURE & BREAKDOWN"})
-    for cat, pct in exp_dict.items():
-        meta = {"path": ["expenditure", cat], "type": "pct", "raw": pct}
-        add({"type": T_BAR, "h": BAR_H, "in_block": True,
-             "label": cat, "pct": pct,
-             "amount": fmt_cr(pct * ipeu_base),
-             "editable": True, "edit_meta": meta})
-    add({"type": T_SEP, "h": SEP_H, "in_block": True})
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "TOTAL",
-         "value": f"{sum(exp_dict.values())*100:.1f}%   ({fmt_cr(total_exp)})",
-         "label_w": 18, "editable": False, "edit_meta": None, "val_color": GOLD})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── ## ECONOMIC PROJECTS ─────────────────────────────
-    add({"type": T_HDR2, "h": HDR2_H, "text": "## ECONOMIC PROJECTS"})
-    all_projs = [p for p in projects if p.get("status") in ("active","in_progress","complete")]
-    if all_projs:
-        for proj in all_projs:
-            done  = proj.get("status") == "complete"
-            turns_left = proj.get("duration_turns",0) - proj.get("turns_elapsed",0)
-            tag_str = "[COMPLETE]" if done else f"[{turns_left}t left]"
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": f"{proj['name']}  ({proj.get('category','?')})",
-                 "value": tag_str, "label_w": 38,
-                 "editable": False, "edit_meta": None,
-                 "val_color": GREEN if done else GOLD})
-    else:
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": "None active", "value": "", "label_w": 38,
-             "editable": False, "edit_meta": None, "val_color": DIM})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── ## FISCAL REPORT ─────────────────────────────────
-    add({"type": T_HDR2, "h": HDR2_H, "text": "## FISCAL REPORT"})
-    FISCAL = [
-        ("Debt Balance",    f"{fmt_cr(debt_d['balance'])}  ({debt_d['load_pct']:.1f}% of IPEU)",
-         "debt_balance",  "float"),
-        ("Interest Rate",   f"{debt_d['rate']*100:.1f}% / yr",       "interest_rate",  "pct"),
-        ("Quarterly Int.",  fmt_cr(debt_d["q_interest"]),              None,             None),
-        ("Debt Repayment",  fmt_cr(debt_d["repayment"]) + " / qtr",  "debt_repayment", "float"),
-    ]
-    for label, value, key, etype in FISCAL:
-        meta = {"path": [key], "type": etype, "raw": nation.get(key, 0)} if key else None
-        vcol = RED_C if (label == "Debt Balance" and debt_d["balance"] > 0) else TEXT
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": label, "value": value, "label_w": 18,
-             "editable": meta is not None, "edit_meta": meta, "val_color": vcol})
-    # Debt Load visual bar
-    add({"type": T_DEBT, "h": DEBT_H, "in_block": True,
-         "pct": debt_d["load_pct"] / 100.0})
-    add({"type": T_SEP, "h": SEP_H, "in_block": True})
-    sf_col = GREEN if sfund > 0 else RED_C
-    fd_col = GREEN if fund_delta >= 0 else RED_C
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "Strategic Fund",
-         "value": fmt_cr(sfund), "label_w": 18,
-         "editable": True, "val_color": sf_col,
-         "edit_meta": {"path": ["strategic_fund"], "type": "float", "raw": sfund}})
-    fd_sign = "+" if fund_delta >= 0 else ""
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "Fund Δ this turn",
-         "value": f"{fd_sign}{fmt_cr(fund_delta)}", "label_w": 18,
-         "editable": False, "edit_meta": None, "val_color": fd_col})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── ## RESOURCES ─────────────────────────────────────
-    add({"type": T_HDR2, "h": HDR2_H, "text": "## RESOURCES & STOCKPILES"})
-    RESOURCES = ["Food", "Minerals", "Energy", "Alloys", "Consumer Goods"]
-    for rname in RESOURCES:
-        sd    = nation.get("resource_stockpiles", {}).get(rname, {})
-        stock = sd.get("stockpile", 0.0)
-        mode  = sd.get("production_mode", "derived")
-        if mode == "flat":
-            prod = sd.get("flat_production", 0.0)
-            cons = sd.get("flat_consumption", 0.0)
-        else:
-            rd   = res_d.get(rname, {})
-            prod = rd.get("production", 0.0)
-            cons = rd.get("consumption", 0.0)
-        net   = prod - cons
-        ncol  = GREEN if net >= 0 else RED_C
-        eps   = max(prod * 0.05, 1.0)
-        trend = "Stable" if abs(net) < eps else ("Surplus ▲" if net > 0 else "Deficit ▼")
-        tcol  = GREEN if "Surplus" in trend else (RED_C if "Deficit" in trend else GOLD)
-        exp_c = resource_export_credits(nation["name"], rname, routes)
-        net_s = (f"+{fmt_int(net)}" if net >= 0 else fmt_int(int(net)))
-
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": f"{rname} Stockpile", "value": fmt_int(stock),
-             "label_w": 28, "editable": True, "val_color": TEXT,
-             "edit_meta": {"path": ["resource_stockpiles", rname, "stockpile"],
-                           "type": "float", "raw": stock}})
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": f"{rname} Production/turn",
-             "value": fmt_int(prod), "label_w": 28,
-             "editable": mode == "flat", "val_color": TEXT,
-             "edit_meta": {"path": ["resource_stockpiles", rname, "flat_production"],
-                           "type": "float", "raw": prod} if mode == "flat" else None})
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": f"{rname} Net/turn", "value": net_s,
-             "label_w": 28, "editable": False, "edit_meta": None, "val_color": ncol})
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": f"{rname} Trend", "value": trend,
-             "label_w": 28, "editable": False, "edit_meta": None, "val_color": tcol})
-        if exp_c > 0:
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": f"{rname} Export", "value": fmt_cr(exp_c),
-                 "label_w": 28, "editable": False, "edit_meta": None, "val_color": CYAN})
-        add({"type": T_SPC, "h": 4})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── # TERRITORIES ────────────────────────────────────
-    add({"type": T_HDR1, "h": HDR1_H, "text": "# TERRITORIES"})
-    if star_sys:
-        for sys in star_sys:
-            sname  = sys["name"]
-            coords = sys.get("coordinates","") or "—"
-            notes  = sys.get("notes","")
-            add({"type": T_ROW, "h": ROW_H, "in_block": False,
-                 "label": f"System: {sname}  [{coords}]",
-                 "value": notes, "label_w": 36,
-                 "editable": False, "edit_meta": None, "val_color": CYAN})
-            for planet in sys.get("planets",[]):
-                pname = planet["name"]
-                cli   = planet.get("climate","?")
-                col   = planet.get("colonization_pct",0)
-                urb   = planet.get("urbanization_pct",0)
-                add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                     "label": f"  ▸ {pname}",
-                     "value": f"{cli}  col:{col:.0f}%  urb:{urb:.0f}%",
-                     "label_w": 22, "editable": False, "edit_meta": None, "val_color": TEXT})
-                for s in planet.get("settlements",[]):
-                    sp  = s.get("population",0)
-                    loy = s.get("loyalty",0)
-                    ds  = len(s.get("districts",[]))
-                    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                         "label": f"      › {s['name']}",
-                         "value": f"pop:{fmt_pop(sp)}  loy:{loy:.0f}%  districts:{ds}",
-                         "label_w": 26, "editable": False, "edit_meta": None, "val_color": DIM})
-    else:
-        add({"type": T_ROW, "h": ROW_H, "in_block": True,
-             "label": "No territorial data", "value": "", "label_w": 40,
-             "editable": False, "edit_meta": None, "val_color": DIM})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── ## DEMOGRAPHICS ──────────────────────────────────
-    add({"type": T_HDR2, "h": HDR2_H, "text": "## NATIONAL DEMOGRAPHICS"})
-    loy_mod = nation.get("loyalty_modifier_cg", 1.0)
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "Total Population", "value": fmt_pop(pop),
-         "label_w": 22, "editable": False, "edit_meta": None, "val_color": TEXT})
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "Loyalty Modifier", "value": f"{loy_mod*100:.0f}%",
-         "label_w": 22, "editable": False, "edit_meta": None, "val_color": TEXT})
-    add({"type": T_SPC, "h": 6})
-    for sp in species:
-        is_dom = sp.get("status","") in ("dominant","majority")
-        add({"type": T_SPHDR, "h": SPHDR_H,
-             "name": sp["name"], "status": sp.get("status","?").title(),
-             "dominant": is_dom})
-        loy   = sp.get("loyalty", 0)
-        sp_pop= sp.get("population", 0)
-        shr   = (sp_pop / pop * 100) if pop > 0 else 0
-        lc    = GREEN if loy >= 70 else (GOLD if loy >= 40 else RED_C)
-        SPROWS = [
-            ("Population",  fmt_pop(sp_pop),                            None),
-            ("Share",       f"{shr:.1f}% of total",                    None),
-            ("Growth Rate", fmt_pct_plus(sp.get("growth_rate",0)) + " / yr", None),
-            ("Culture",     sp.get("culture","—"),                     None),
-            ("Language",    sp.get("language","—"),                    None),
-            ("Religion",    sp.get("religion","—"),                    None),
-            ("Loyalty",     f"{loy}/100  {loyalty_bar(loy)}",          lc),
-        ]
-        for label, value, vcol in SPROWS:
-            vc = vcol or TEXT
-            is_loy = label == "Loyalty"
-            meta = {"path": ["_species", sp["name"], "loyalty"],
-                    "type": "int", "raw": loy} if is_loy else None
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": label, "value": value, "label_w": 16,
-                 "editable": is_loy, "edit_meta": meta, "val_color": vc})
-        add({"type": T_SPC, "h": 6})
-
-    # ── # MILITARY ───────────────────────────────────────
-    add({"type": T_HDR1, "h": HDR1_H, "text": "# MILITARY"})
-    if not isinstance(afd, list):
-        afd_list = []
-    else:
-        afd_list = afd
-    CAT_MAP = [
-        ("## SPACEFLEET",       ["Spacefleet","Navy"]),
-        ("## AEROSPACE FORCES", ["Air Force","Aerospace"]),
-        ("## GROUND FORCES",    ["Ground Forces","Ground","Army"]),
-    ]
-    for sec_label, cats in CAT_MAP:
-        add({"type": T_HDR2, "h": HDR2_H, "text": sec_label})
-        units = [u for u in afd_list if u.get("category") in cats]
-        if units:
-            for u in units:
-                cname = u.get("custom_name") or u.get("unit","?")
-                vet   = u.get("veterancy","?")
-                cnt   = u.get("count",1)
-                add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                     "label": f"  {cname}", "value": f"×{cnt}  {vet}",
-                     "label_w": 30, "editable": False, "edit_meta": None,
-                     "val_color": DIM})
-        else:
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": "  None on record", "value": "", "label_w": 30,
-                 "editable": False, "edit_meta": None, "val_color": DIM2})
-    add({"type": T_SPC, "h": SPC_H})
-
-    # ── # RESEARCH ───────────────────────────────────────
-    add({"type": T_HDR1, "h": HDR1_H, "text": "# RESEARCH"})
-    add({"type": T_ROW, "h": ROW_H, "in_block": True,
-         "label": "Budget/turn", "value": fmt_cr(rbudget),
-         "label_w": 18, "editable": True, "val_color": CYAN,
-         "edit_meta": {"path": ["research_budget"], "type": "float", "raw": rbudget}})
-    if act_res:
-        for proj in act_res:
-            prog = proj.get("progress", 0.0)
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": f"  [{proj.get('field','?')}] {proj.get('name','?')}",
-                 "value": f"{prog:.1f}%", "label_w": 38,
-                 "editable": False, "edit_meta": None, "val_color": GOLD})
-    if comp_tech:
-        shown = comp_tech[-6:]
-        for t in shown:
-            tname = t if isinstance(t, str) else t.get("name", str(t))
-            add({"type": T_ROW, "h": ROW_H, "in_block": True,
-                 "label": f"  ✓ {tname}", "value": "", "label_w": 40,
-                 "editable": False, "edit_meta": None, "val_color": GREEN})
-
-    add({"type": T_SPC, "h": 20})   # bottom padding
-    return items
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DISCORD FORMAT  (1:1 reference)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def format_discord_v2(nation: dict, state: dict) -> str:
-    ye        = years_elapsed(state)
-    ipeu_base = nation.get("base_ipeu", 0.0)
-    pop       = current_population(nation, ye)
-    exp_dict  = nation.get("expenditure", {})
-    routes    = state.get("trade_routes", [])
-    trade     = compute_trade(nation, routes)
-    res_d     = compute_resources(nation, ipeu_base)
-    debt_d    = compute_debt(nation, ipeu_base)
-    rbudget   = nation.get("research_budget", 0.0)
-    sfund     = nation.get("strategic_fund", 0.0)
-    star_sys  = nation.get("star_systems", [])
-    species   = nation.get("species_populations", [])
-    projects  = nation.get("projects", [])
-    tag       = nation_tag(nation["name"])
-    year      = state.get("year",    2200)
-    quarter   = state.get("quarter", 1)
-    civ_level = nation.get("civ_level",  "Interplanetary Industrial")
-    civ_tier  = nation.get("civ_tier",   2)
-    eco_status= nation.get("eco_status", "Stable")
-
-    homeworld = "—"
-    for sys in star_sys:
-        for planet in sys.get("planets", []):
-            homeworld = planet["name"]
-            break
-        break
-
-    species_str = ", ".join(s["name"] for s in species) if species else "—"
-    total_exp   = sum(exp_dict.values()) * ipeu_base + rbudget
-    net_bal     = ipeu_base + trade["net"] - total_exp - debt_d["q_interest"]
-    export_cr   = trade["exports"] + trade["transit_income"]
-    fund_delta  = -debt_d["q_interest"]
-    per_cap     = int(ipeu_base / pop) if pop else 0
-
-    L = []
-    L.append(f"-# [{tag}] {nation['name'].upper()}")
-    L.append(f"# NATIONAL PROFILE - Q{quarter} {year}")
-    L.append("```")
-    L.append(f"  Species          : {species_str}")
-    L.append(f"  Population       : {fmt_pop(pop)}")
-    L.append(f"  Pop Growth       : {fmt_pct_plus(nation.get('pop_growth',0))} / yr")
-    L.append(f"  Homeworld        : {homeworld}")
-    L.append(f"  Civilisation     : {civ_level}")
-    L.append(f"  Tier             : {civ_tier}")
-    L.append(f"  Status           : {eco_status}")
-    L.append("```")
-
-    L.append("# ECONOMY")
-    L.append("```")
-    L.append(f"  IPEU (base)      : {fmt_cr(ipeu_base)}")
-    L.append(f"  IPEU Growth      : {fmt_pct_plus(nation.get('ipeu_growth',0))} / yr")
-    L.append(f"  IPEU per Capita  : {per_cap:,} cr")
-    L.append(f"  Export Credits   : {fmt_cr(export_cr)}")
-    L.append(f"  Total Expenditure: {fmt_cr(total_exp)}  ({sum(exp_dict.values())*100:.1f}%)")
-    L.append(f"  Research Budget  : {fmt_cr(rbudget)} / turn")
-    L.append(f"  Net Balance      : {fmt_cr(net_bal)}")
-    L.append("```")
-
-    L.append("## EXPENDITURE & BREAKDOWN")
-    L.append("```")
-    for cat, pct in exp_dict.items():
-        bar = exp_bar_str(pct)
-        L.append(f"  {cat:<22} {pct*100:5.1f}%   {bar}   {fmt_cr(pct*ipeu_base)}")
-    L.append(f"  {'─'*61}")
-    L.append(f"  {'TOTAL':<22} {sum(exp_dict.values())*100:5.1f}%              ({fmt_cr(total_exp)})")
-    L.append("```")
-
-    L.append("## ECONOMIC PROJECTS")
-    L.append("```")
-    all_projs = [p for p in projects if p.get("status") in ("active","in_progress","complete")]
-    if all_projs:
-        for proj in all_projs:
-            done  = proj.get("status") == "complete"
-            turns_left = proj.get("duration_turns",0) - proj.get("turns_elapsed",0)
-            tag_str = "[COMPLETE]" if done else f"[{turns_left} turns remaining]"
-            L.append(f"  {proj['name']} ({proj.get('category','?')})  {tag_str}")
-    else:
-        L.append("  None")
-    L.append("```")
-
-    L.append("## FISCAL REPORT")
-    L.append("```")
-    L.append(f"  Debt Balance     : {fmt_cr(debt_d['balance'])}  ({debt_d['load_pct']:.1f}% of IPEU)")
-    L.append(f"  Debt Load        : {debt_bar_str(debt_d['load_pct']/100)}")
-    L.append(f"  Interest Rate    : {debt_d['rate']*100:.1f}% / yr")
-    L.append(f"  Quarterly Int.   : {fmt_cr(debt_d['q_interest'])}")
-    L.append(f"  Debt Repayment   : {fmt_cr(debt_d['repayment'])} / qtr")
-    L.append(f"  {'─'*61}")
-    sf_icon = "🟢" if sfund >= 0 else "🔴"
-    L.append(f"  Strategic Fund   : {sf_icon} {fmt_cr(sfund)}")
-    fd_sign = "+" if fund_delta >= 0 else ""
-    L.append(f"  Fund Δ this turn : {fd_sign}{fmt_cr(fund_delta)}")
-    L.append("```")
-
-    L.append("## RESOURCES & STOCKPILES")
-    RESOURCES = ["Food","Minerals","Energy","Alloys","Consumer Goods"]
-    for rname in RESOURCES:
-        sd    = nation.get("resource_stockpiles",{}).get(rname,{})
-        stock = sd.get("stockpile", 0.0)
-        mode  = sd.get("production_mode","derived")
-        if mode == "flat":
-            prod = sd.get("flat_production",  0.0)
-            cons = sd.get("flat_consumption", 0.0)
-        else:
-            rd   = res_d.get(rname, {})
-            prod = rd.get("production",  0.0)
-            cons = rd.get("consumption", 0.0)
-        net    = prod - cons
-        eps    = max(prod * 0.05, 1.0)
-        trend  = "Stable" if abs(net) < eps else ("Surplus" if net > 0 else "Deficit")
-        net_s  = f"+{fmt_int(net)}" if net >= 0 else fmt_int(int(net))
-        exp_c  = resource_export_credits(nation["name"], rname, routes)
-        L.append("```")
-        L.append(f"  {rname} Stockpile            : {fmt_int(stock)}")
-        L.append(f"  {rname} Production per turn  : {fmt_int(prod)}")
-        L.append(f"  {rname} Net per turn         : {net_s}")
-        L.append(f"  {rname} Trend                : {trend}")
-        if exp_c > 0:
-            L.append(f"  {rname} Export              : {fmt_cr(exp_c)}")
-        L.append("```")
-
-    L.append("# TERRITORIES")
-    if star_sys:
-        sys0 = star_sys[0]
-        L.append(f"Home System: {sys0['name']}")
-        for planet in sys0.get("planets",[]):
-            L.append("```")
-            pop_a = planet.get("pop_assigned", pop)
-            L.append(f"  Homeworld: {planet['name']}")
-            L.append(f"    Population    : {fmt_pop(pop_a)}")
-            setts = planet.get("settlements", [])
-            if setts:
-                L.append(f"    Settlements   : {len(setts)}")
-                for s in setts:
-                    L.append(f"      - {s['name']}")
-                    dcounts: Dict[str,int] = {}
-                    for d in s.get("districts",[]):
-                        dt = d.get("type","?")
-                        dcounts[dt] = dcounts.get(dt, 0) + 1
-                    for dt, cnt in dcounts.items():
-                        L.append(f"        [{dt}] ×{cnt}")
-            else:
-                L.append("    Settlements   : (UNNAMED = Capital (UNNAMED))")
-                L.append("    Urban Districts: UNKNOWN")
-            L.append("```")
-    else:
-        L.append("No territorial data")
-
-    L.append("## NATIONAL DEMOGRAPHICS")
-    L.append("```")
-    L.append(f"  Total Population: {fmt_pop(pop)}")
-    L.append(f"  Loyalty Modifier: {nation.get('loyalty_modifier_cg',1.0)*100:.0f}%")
-    L.append("```")
-
-    for sp in species:
-        is_dom   = sp.get("status","") in ("dominant","majority")
-        crown    = "👑" if is_dom else "👥"
-        sp_pop   = sp.get("population", 0)
-        shr      = (sp_pop / pop * 100) if pop > 0 else 0
-        loy      = sp.get("loyalty", 0)
-        loy_icon = "🟢" if loy >= 70 else ("🟡" if loy >= 40 else "🔴")
-        L.append(f"**{sp['name']}**  {crown} {sp.get('status','').title()}")
-        L.append("```")
-        L.append(f"  Population       : {fmt_pop(sp_pop)}")
-        L.append(f"  Share            : {shr:.1f}% of total")
-        L.append(f"  Growth Rate      : {fmt_pct_plus(sp.get('growth_rate',0))} / yr")
-        L.append(f"  Culture          : {sp.get('culture','—')}")
-        L.append(f"  Language         : {sp.get('language','—')}")
-        L.append(f"  Religion         : {sp.get('religion','—')}")
-        L.append(f"  Loyalty          : {loy_icon} {loy}/100  {loyalty_bar(loy)}")
-        L.append("```")
-
-    return "\n".join(L)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# FONT CACHE
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-_fonts: Dict[str, pygame.font.Font] = {}
-
-def gf(size: int, mono: bool = True) -> pygame.font.Font:
-    key = f"{'m' if mono else 's'}{size}"
-    if key not in _fonts:
-        if mono:
-            for name in ("Courier New","Courier","Consolas","DejaVu Sans Mono","monospace"):
-                try:
-                    f = pygame.font.SysFont(name, size)
-                    _fonts[key] = f
-                    break
-                except Exception:
-                    continue
-        else:
-            for name in ("Segoe UI","Calibri","Arial","Helvetica","sans"):
-                try:
-                    f = pygame.font.SysFont(name, size)
-                    _fonts[key] = f
-                    break
-                except Exception:
-                    continue
-        if key not in _fonts:
-            _fonts[key] = pygame.font.Font(None, size + 4)
-    return _fonts[key]
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DRAWING UTILITIES
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def draw_text(surf, txt: str, x: int, y: int,
-              font: pygame.font.Font, col=TEXT) -> int:
-    s = font.render(txt, True, col)
-    surf.blit(s, (x, y))
-    return s.get_width()
-
-
-def tw(txt: str, font: pygame.font.Font) -> int:
-    return font.size(txt)[0]
-
-
-def draw_bar(surf, x, y, w, h, pct,
-             fg=CYAN, bg=BLOCK_BG, border=BORDER):
-    pygame.draw.rect(surf, bg, (x, y, w, h))
-    fill = max(0, int(w * max(0.0, min(1.0, pct))))
-    if fill:
-        pygame.draw.rect(surf, fg, (x, y, fill, h))
-    pygame.draw.rect(surf, border, (x, y, w, h), 1)
-
-
-def corner_deco(surf, x, y, w, h, col, s=10):
-    pts = [
-        [(x, y+s),     (x, y),     (x+s, y)],
-        [(x+w-s, y),   (x+w, y),   (x+w, y+s)],
-        [(x, y+h-s),   (x, y+h),   (x+s, y+h)],
-        [(x+w-s, y+h), (x+w, y+h), (x+w, y+h-s)],
-    ]
-    for p in pts:
-        pygame.draw.lines(surf, col, False, p, 2)
-
-
-def draw_panel(surf, rect, bg=PANEL, border=BORDER,
-               accent=None, corner=False):
-    pygame.draw.rect(surf, bg, rect)
-    pygame.draw.rect(surf, border, rect, 1)
-    if corner and accent:
-        corner_deco(surf, rect[0], rect[1], rect[2], rect[3], accent, 10)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# SCROLLBAR
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class Scrollbar:
-    def __init__(self, x, y, w, h):
-        self.rect      = pygame.Rect(x, y, w, h)
-        self.thumb_r   = pygame.Rect(x, y, w, 20)
-        self._drag     = False
-        self._drag_off = 0
-        self.scroll    = 0
-        self.content_h = 1
-        self.view_h    = h
-
-    def set_content(self, ch, vh):
-        self.content_h = max(1, ch)
-        self.view_h    = vh
-
-    def clamp(self):
-        self.scroll = max(0, min(self.scroll, max(0, self.content_h - self.view_h)))
-
-    def _update_thumb(self):
-        max_s    = max(1, self.content_h - self.view_h)
-        ratio    = self.view_h / self.content_h
-        t_h      = max(20, int(self.rect.h * ratio))
-        t_y      = self.rect.y + int((self.scroll / max_s) * (self.rect.h - t_h))
-        self.thumb_r = pygame.Rect(self.rect.x, t_y, self.rect.w, t_h)
-
-    def draw(self, surf):
-        pygame.draw.rect(surf, SCRLBG, self.rect)
-        self._update_thumb()
-        pygame.draw.rect(surf, SCRLTMB, self.thumb_r, border_radius=3)
-        pygame.draw.rect(surf, BORDER,  self.rect, 1)
-
-    def on_event(self, event, over: bool):
-        if event.type == pygame.MOUSEWHEEL and over:
-            self.scroll -= event.y * 40
-            self.clamp()
-        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            if self.thumb_r.collidepoint(event.pos):
-                self._drag     = True
-                self._drag_off = event.pos[1] - self.thumb_r.y
-        elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
-            self._drag = False
-        elif event.type == pygame.MOUSEMOTION and self._drag:
-            rel     = event.pos[1] - self.rect.y - self._drag_off
-            travel  = max(1, self.rect.h - self.thumb_r.h)
-            self.scroll = int((rel / travel) * max(0, self.content_h - self.view_h))
-            self.clamp()
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# BUTTON
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class Button:
-    def __init__(self, rect, label, accent=False, small=False):
-        self.rect    = pygame.Rect(rect)
-        self.label   = label
-        self.accent  = accent
-        self.small   = small
-        self._hov    = False
-
-    def draw(self, surf):
-        if self.accent:
-            bg  = BTNACC_H if self._hov else BTNACC
-            bdr = ACCENT
-        else:
-            bg  = BTNHOV if self._hov else BTNBG
-            bdr = BORDER2
-        pygame.draw.rect(surf, bg, self.rect, border_radius=3)
-        pygame.draw.rect(surf, bdr, self.rect, 1, border_radius=3)
-        f  = gf(11 if self.small else 13)
-        tw_ = tw(self.label, f)
-        tx  = self.rect.x + (self.rect.w - tw_) // 2
-        ty  = self.rect.y + (self.rect.h - f.get_height()) // 2
-        draw_text(surf, self.label, tx, ty, f, BRIGHT)
-
-    def on_event(self, event) -> bool:
-        if event.type == pygame.MOUSEMOTION:
-            self._hov = self.rect.collidepoint(event.pos)
-        return (event.type == pygame.MOUSEBUTTONDOWN and event.button == 1
-                and self.rect.collidepoint(event.pos))
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# EDIT OVERLAY
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class EditOverlay:
-    H = 50
-
-    def __init__(self):
-        self.active      = False
-        self.label       = ""
-        self.text        = ""
-        self.cursor      = 0
-        self.meta        = None
-        self._blink      = 0.0
-        self._cur_vis    = True
-
-    def open(self, label: str, raw, meta: dict):
-        self.active   = True
-        self.label    = label
-        self.text     = str(raw)
-        self.cursor   = len(self.text)
-        self.meta     = meta
-        self._blink   = 0.0
-        self._cur_vis = True
-
-    def close(self):
-        self.active = False
-        self.text   = ""
-        self.meta   = None
-
-    def draw(self, surf, dt: float):
-        if not self.active:
-            return
-        self._blink += dt
-        if self._blink > 0.45:
-            self._cur_vis = not self._cur_vis
-            self._blink   = 0.0
-
-        y = SH - SBAR_H - self.H
-        r = pygame.Rect(MAIN_X, y, SW - MAIN_X, self.H)
-        pygame.draw.rect(surf, EDITBG, r)
-        pygame.draw.rect(surf, EDITBDR, r, 2)
-        corner_deco(surf, r.x, r.y, r.w, r.h, EDITBDR, 7)
-
-        f   = gf(13)
-        lbl = f"EDIT  {self.label}  ▸ "
-        lw_ = tw(lbl, f)
-        draw_text(surf, lbl, r.x + 14, r.y + 16, f, DIM)
-
-        tx = r.x + 14 + lw_
-        ty = r.y + 16
-        draw_text(surf, self.text, tx, ty, f, BRIGHT)
-        if self._cur_vis:
-            cx = tx + tw(self.text[:self.cursor], f)
-            pygame.draw.line(surf, EDITBDR, (cx, ty), (cx, ty + f.get_height()), 2)
-
-        hint = "[ENTER] Confirm   [ESC] Cancel"
-        hw   = tw(hint, f)
-        draw_text(surf, hint, r.right - hw - 14, r.y + 16, f, DIM)
-
-    def on_event(self, event) -> Optional[str]:
-        if not self.active:
-            return None
-        if event.type != pygame.KEYDOWN:
-            return None
-        k = event.key
-        if k in (pygame.K_RETURN, pygame.K_KP_ENTER):
-            return "confirm"
-        if k == pygame.K_ESCAPE:
-            return "cancel"
-        if k == pygame.K_BACKSPACE:
-            if self.cursor > 0:
-                self.text   = self.text[:self.cursor-1] + self.text[self.cursor:]
-                self.cursor -= 1
-        elif k == pygame.K_DELETE:
-            self.text = self.text[:self.cursor] + self.text[self.cursor+1:]
-        elif k == pygame.K_LEFT:
-            self.cursor = max(0, self.cursor - 1)
-        elif k == pygame.K_RIGHT:
-            self.cursor = min(len(self.text), self.cursor + 1)
-        elif k == pygame.K_HOME:
-            self.cursor = 0
-        elif k == pygame.K_END:
-            self.cursor = len(self.text)
-        elif event.unicode and event.unicode.isprintable():
-            self.text   = self.text[:self.cursor] + event.unicode + self.text[self.cursor:]
-            self.cursor += 1
-        return None
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# APPLY EDIT
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def apply_edit(nation: dict, meta: dict, raw_text: str) -> bool:
-    path  = meta["path"]
-    etype = meta["type"]
-    try:
-        clean = raw_text.strip().replace(",","").replace("_","")
-        if etype == "float":
-            value = float(clean)
-        elif etype == "pct":
-            v = float(clean.replace("%",""))
-            value = v / 100.0 if v > 1.5 else v
-        elif etype == "int":
-            value = int(float(clean))
-        elif etype == "pop":
-            v = float(clean.rstrip("BbMmKk"))
-            if clean[-1] in "Bb": v *= 1e9
-            elif clean[-1] in "Mm": v *= 1e6
-            elif clean[-1] in "Kk": v *= 1e3
-            value = v
-        else:
-            value = raw_text.strip()
-    except (ValueError, IndexError):
-        return False
-
-    # Species nested edit
-    if path[0] == "_species" and len(path) == 3:
-        for sp in nation.get("species_populations", []):
-            if sp["name"] == path[1]:
-                sp[path[2]] = value
-                return True
-        return False
-
-    # Resource stockpile nested edit
-    if path[0] == "resource_stockpiles" and len(path) == 3:
-        nation.setdefault("resource_stockpiles", {}) \
-              .setdefault(path[1], {})[path[2]] = value
-        return True
-
-    # Expenditure nested edit
-    if path[0] == "expenditure" and len(path) == 2:
-        nation.setdefault("expenditure", {})[path[1]] = value
-        return True
-
-    # Top-level
-    if len(path) == 1:
-        nation[path[0]] = value
-        return True
-
-    return False
-
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # LEFT PANEL
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 class LeftPanel:
-    ROW_H  = 38
-    PAD    = 8
+    """Nation list sidebar with action buttons."""
+    ROW_H = 40; PAD = 8
 
-    def __init__(self, w, h):
-        self.rect     = pygame.Rect(0, 0, w, h)
-        self.names    : List[str] = []
-        self.scroll   = 0
-        self.selected = 0
-        self._hover   = -1
-        # Buttons (absolute screen coords)
-        bw = w - self.PAD * 2
-        self.btn_save = Button((self.PAD, h - 90, bw, 26), "[ SAVE  S ]", accent=True)
-        self.btn_disc = Button((self.PAD, h - 60, bw, 26), "[ DISCORD EXPORT  D ]")
-        self.btn_init = Button((self.PAD, h - 30, bw, 26), "[ INIT SETTLEMENTS ]", small=True)
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.names = []; self.scroll = 0
+        self.selected = 0; self._hov = -1
 
-    def set_nations(self, names: List[str], sel: int = 0):
-        self.names    = names
-        self.selected = sel
+    def update_layout(self, lay: Layout): self.lay = lay
+    def set_nations(self, names, sel=0): self.names = names; self.selected = sel
 
-    # ── draw ──────────────────────────────────
+    def _buttons(self):
+        lw = self.lay.lw; sh = self.lay.sh; p = self.PAD; bw = lw - p*2
+        return {
+            "save":  Button((p, sh-130, bw, 26), "[ SAVE  S ]",  accent=True),
+            "disc":  Button((p, sh-100, bw, 26), "[ DISCORD  D ]"),
+            "trade": Button((p, sh- 70, bw, 26), "[ TRADE ROUTE  R ]"),
+            "adv":   Button((p, sh- 40, bw, 26), "[ ADVANCE TURN  T ]", accent=True),
+        }
 
     def draw(self, surf, turn, year, quarter):
-        r = self.rect
-        # Panel bg + border
-        pygame.draw.rect(surf, PANEL, r)
-        pygame.draw.rect(surf, BORDER, r, 1)
-        corner_deco(surf, r.x, r.y, r.w, r.h, ACCENT, 10)
-
-        # Top accent stripe
-        pygame.draw.rect(surf, ACCENT2, (r.x, r.y, r.w, 3))
-
-        f_title = gf(14, mono=False)
-        f_sub   = gf(11)
-        f_item  = gf(13)
-        f_tag   = gf(11)
-
-        draw_text(surf, "CARMINE NRP",
-                  r.x + self.PAD, r.y + 8, f_title, ACCENT)
-        draw_text(surf, f"T{turn}  ·  {year} Q{quarter}",
-                  r.x + self.PAD, r.y + 28, f_sub, TEAL)
-
-        # Separator
-        yd = r.y + 48
-        pygame.draw.line(surf, BORDER2, (r.x+4, yd), (r.right-4, yd), 1)
-
-        list_y0 = yd + 4
-        list_h  = r.h - (yd - r.y) - 100
-        clip    = pygame.Rect(r.x, list_y0, r.w, list_h)
-        surf.set_clip(clip)
-
+        lw = self.lay.lw; sh = self.lay.sh
+        pygame.draw.rect(surf, PANEL, (0, 0, lw, sh))
+        pygame.draw.rect(surf, BORDER, (0, 0, lw, sh), 1)
+        corner_deco(surf, 0, 0, lw, sh, ACCENT, 10)
+        pygame.draw.rect(surf, ACCENT2, (0, 0, lw, 3))
+        bt = blit_text
+        bt(surf, "CARMINE NRP", self.PAD, 8, gf(14, mono=False), ACCENT)
+        bt(surf, f"T{turn}  ·  {year} Q{quarter}", self.PAD, 28, gf(11), TEAL)
+        yd = 48; pygame.draw.line(surf, BORDER2, (4, yd), (lw-4, yd), 1)
+        ly0 = yd+4; lh = sh - yd - 145
+        surf.set_clip(pygame.Rect(0, ly0, lw, lh))
+        fi = gf(12); ft = gf(10)
         for i, name in enumerate(self.names):
-            iy = list_y0 + i * self.ROW_H - self.scroll
-            if iy + self.ROW_H < list_y0 or iy > list_y0 + list_h:
-                continue
-            rr = pygame.Rect(r.x + 4, iy, r.w - 8, self.ROW_H - 3)
+            iy = ly0 + i*self.ROW_H - self.scroll
+            if iy + self.ROW_H < ly0 or iy > ly0+lh: continue
+            rr = pygame.Rect(4, iy, lw-8, self.ROW_H-3)
             if i == self.selected:
-                pygame.draw.rect(surf, SELECTED, rr, border_radius=3)
+                pygame.draw.rect(surf, SEL, rr, border_radius=3)
                 pygame.draw.rect(surf, CYAN, rr, 1, border_radius=3)
-                # left glow bar
-                pygame.draw.rect(surf, CYAN, (r.x, iy, 3, self.ROW_H - 3))
-                nc = BRIGHT
-            elif i == self._hover:
-                pygame.draw.rect(surf, HOVER, rr, border_radius=3)
-                nc = TEXT
-            else:
-                nc = DIM
-
-            tag = f"[{nation_tag(name)}]"
-            draw_text(surf, tag,  r.x + self.PAD + 2, iy + 4,  f_tag, TEAL if i==self.selected else DIM2)
-            ns = name if len(name) <= 22 else name[:20] + ".."
-            draw_text(surf, ns,   r.x + self.PAD + 2, iy + 18, f_item, nc)
-
+                pygame.draw.rect(surf, CYAN, (0, iy, 3, self.ROW_H-3)); nc = BRIGHT
+            elif i == self._hov:
+                pygame.draw.rect(surf, HOV, rr, border_radius=3); nc = TEXT
+            else: nc = DIM
+            tag_str = f"[{nation_tag(name)}]"
+            bt(surf, tag_str, self.PAD+2, iy+4, ft, TEAL if i==self.selected else DIM2)
+            ns = name if len(name) <= 20 else name[:18]+".."
+            bt(surf, ns, self.PAD+2, iy+18, fi, nc)
         surf.set_clip(None)
+        for b in self._buttons().values(): b.draw(surf)
 
-        self.btn_save.draw(surf)
-        self.btn_disc.draw(surf)
-        self.btn_init.draw(surf)
-
-    # ── events ────────────────────────────────
-
-    def on_event(self, event) -> Optional[int]:
+    def on_event(self, event):
+        lw = self.lay.lw
         if event.type == pygame.MOUSEMOTION:
             pos = event.pos
-            if self.rect.collidepoint(pos):
-                yd     = self.rect.y + 52
-                rel    = pos[1] - yd + self.scroll
-                i      = rel // self.ROW_H
-                self._hover = i if 0 <= i < len(self.names) else -1
-            else:
-                self._hover = -1
-
-        if event.type == pygame.MOUSEWHEEL:
-            if self.rect.collidepoint(pygame.mouse.get_pos()):
-                self.scroll = max(0, self.scroll - event.y * self.ROW_H)
-
+            if pos[0] < lw:
+                rel = pos[1] - 52 + self.scroll; i = rel // self.ROW_H
+                self._hov = i if 0 <= i < len(self.names) else -1
+            else: self._hov = -1
+        if event.type == pygame.MOUSEWHEEL and pygame.mouse.get_pos()[0] < lw:
+            self.scroll = max(0, self.scroll - event.y * self.ROW_H)
+        for key, btn in self._buttons().items():
+            if btn.on_event(event): return None, key
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             pos = event.pos
-            if self.rect.collidepoint(pos):
-                yd  = self.rect.y + 52
-                rel = pos[1] - yd + self.scroll
-                i   = rel // self.ROW_H
-                if 0 <= i < len(self.names):
-                    self.selected = i
-                    return i
-        return None
-
+            if pos[0] < lw:
+                rel = pos[1] - 52 + self.scroll; i = rel // self.ROW_H
+                if 0 <= i < len(self.names): self.selected = i; return i, None
+        return None, None
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# MAIN PANEL
+# PROFILE  –  build render-item list
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-class MainPanel:
+def build_profile_items(nation: dict, state: dict) -> list:
+    """Build flat render-item list for ProfilePanel."""
+    items = []; y = 8
+    routes = state.get("trade_routes", [])
+    ipeu   = nation.get("base_ipeu", 0.0)
+    pop    = current_population(nation)
+    exp_d  = nation.get("expenditure", {})
+    trade  = compute_trade(nation, routes)
+    rflows = compute_resource_flows(nation)
+    debt   = compute_debt(nation)
+    rbudget= nation.get("research_budget", 0.0)
+    sfund  = nation.get("strategic_fund",  0.0)
+    total_exp_pct = sum(exp_d.values())
+    total_exp_cr  = total_exp_pct*ipeu + rbudget
+    net_bal        = ipeu + trade["net"] - total_exp_cr - debt["q_interest"]
+    fund_delta     = trade["net"] - debt["q_interest"]
+    per_cap        = int(ipeu/pop) if pop > 0 else 0
+    star_sys  = nation.get("star_systems", [])
+    species   = nation.get("species_populations", [])
+    projs     = nation.get("projects", [])
+    act_res   = nation.get("active_research_projects", [])
+    comp_tech = nation.get("completed_techs", [])
+    eco_m     = nation.get("economic_model", "Mixed")
+    afd       = nation.get("active_forces_detail", [])
+    if not isinstance(afd, list): afd = []
+    homeworld = "—"
+    for ss in star_sys:
+        for pl in ss.get("planets", []): homeworld = pl["name"]; break
+        break
+    sstr = (", ".join(f"{s['name']} ({s.get('status','?').title()})" for s in species)
+            if species else "—")
+
+    def add(item): nonlocal y; item["y"] = y; items.append(item); y += item["h"]
+    def hdr1(t): add({"type":"hdr1","h":36,"text":t})
+    def hdr2(t): add({"type":"hdr2","h":30,"text":t})
+    def spc(h=8): add({"type":"spc","h":h})
+    def sep():    add({"type":"sep","h":10})
+    def crow(lbl, val, key=None, et=None, lw=18, vc=TEXT, ib=True):
+        meta = {"path":[key],"type":et,"raw":nation.get(key,val)} if key else None
+        add({"type":"row","h":22,"in_block":ib,"label":lbl,"value":str(val),
+             "label_w":lw,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+
+    add({"type":"nhdr","h":62,"tag":nation_tag(nation["name"]),"name":nation["name"]})
+    spc()
+    for lbl,val,key,et in [
+        ("Species",    sstr,                                          None, None),
+        ("Population", fmt_pop(pop),                                  "population","pop"),
+        ("Pop Growth", fmt_pct(nation.get("pop_growth",0))+" / yr",   "pop_growth","pct"),
+        ("Homeworld",  homeworld,                                      None, None),
+        ("Civilisation",nation.get("civ_level","Interplanetary Industrial"),"civ_level","str"),
+        ("Tier",       str(nation.get("civ_tier",2)),                  "civ_tier","int"),
+        ("Eco Model",  eco_m,                                          "economic_model","str"),
+        ("Status",     nation.get("eco_status","Stable"),              "eco_status","str"),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,val)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":str(val),
+             "label_w":16,"editable":meta is not None,"edit_meta":meta,
+             "val_color":CYAN if key else TEXT})
+    spc()
+
+    hdr1("# ECONOMY")
+    for lbl,val,key,et,vc in [
+        ("IPEU (base)",       fmt_cr(ipeu),                              "base_ipeu","float",CYAN),
+        ("IPEU Growth",       fmt_pct(nation.get("ipeu_growth",0))+" / yr","ipeu_growth","pct",TEXT),
+        ("IPEU per Capita",   f"{per_cap:,} cr",                         None,None,TEXT),
+        ("Trade Revenue",     fmt_cr(trade["net"]),                      None,None,TEXT),
+        (" - Exports",        fmt_cr(trade["exports"]),                  None,None,GREEN),
+        (" - Imports",        fmt_cr(-trade["imports"]),                 None,None,RED_C),
+        ("Total Expenditure", fmt_cr(total_exp_cr)+f"  ({total_exp_pct*100:.1f}%)",None,None,TEXT),
+        ("Research Budget",   fmt_cr(rbudget)+" / turn",                 "research_budget","float",CYAN),
+        ("Net Balance",       fmt_cr(net_bal),                           None,None,GREEN if net_bal>=0 else RED_C),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,0)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+             "label_w":18,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+    spc()
+
+    hdr2("## EXPENDITURE & BREAKDOWN")
+    max_pct = max(exp_d.values(), default=0.01)
+    for cat in EXPENDITURE_ORDER:
+        pct = exp_d.get(cat, 0.0)
+        if pct == 0.0 and cat not in exp_d: continue
+        add({"type":"bar","h":22,"in_block":True,"label":cat,"pct":pct,
+             "amount":fmt_cr(pct*ipeu),"editable":True,
+             "edit_meta":{"path":["expenditure",cat],"type":"pct","raw":pct}})
+    sep()
+    add({"type":"row","h":22,"in_block":True,"label":"TOTAL",
+         "value":f"{total_exp_pct*100:.1f}%   ({fmt_cr(total_exp_cr)})",
+         "label_w":18,"editable":False,"edit_meta":None,"val_color":GOLD})
+    spc()
+
+    if eco_m in ("Capitalist","Mixed"):
+        hdr2("## MARKET DATA")
+        for lbl,val,key,et in [
+            ("Investments",     fmt_cr(nation.get("investments",0)),    "investments","float"),
+            ("Subsidies",       fmt_cr(nation.get("subsidies",0)),      "subsidies","float"),
+            ("Local Mkt Output",fmt_cr(nation.get("local_market_output",0)),"local_market_output","float"),
+        ]:
+            meta = {"path":[key],"type":et,"raw":nation.get(key,0)}
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":20,"editable":True,"edit_meta":meta,"val_color":TEXT})
+        spc()
+    if eco_m in ("Planned","Mixed"):
+        hdr2("## PLANNED DATA")
+        for lbl,val,key,et in [
+            ("Domestic Prod.", fmt_cr(nation.get("domestic_production",0)),"domestic_production","float"),
+            ("Export Surplus", fmt_cr(nation.get("export_surplus",0)),    "export_surplus","float"),
+            ("Construction Eff.",f"{nation.get('construction_efficiency',0.8)*100:.0f}%","construction_efficiency","pct"),
+            ("Research Eff.",  f"{nation.get('research_efficiency',0.8)*100:.0f}%","research_efficiency","pct"),
+            ("Bureaucracy Eff.",f"{nation.get('bureaucracy_efficiency',0.8)*100:.0f}%","bureaucracy_efficiency","pct"),
+            ("Distribution",   fmt_cr(nation.get("distribution",0)),      "distribution","float"),
+        ]:
+            meta = {"path":[key],"type":et,"raw":nation.get(key,0)}
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":20,"editable":True,"edit_meta":meta,"val_color":TEXT})
+        spc()
+
+    hdr2("## ECONOMIC PROJECTS")
+    ap = [p for p in projs if p.get("status") in ("active","in_progress","complete")]
+    if ap:
+        for p in ap:
+            done = p.get("status")=="complete"
+            tl = p.get("duration_turns",0)-p.get("turns_elapsed",0)
+            add({"type":"row","h":22,"in_block":True,
+                 "label":f"{p['name']} ({p.get('category','?')})",
+                 "value":"[COMPLETE]" if done else f"[{tl}t left]",
+                 "label_w":36,"editable":False,"edit_meta":None,
+                 "val_color":GREEN if done else GOLD})
+    else:
+        add({"type":"row","h":22,"in_block":True,"label":"None active","value":"",
+             "label_w":36,"editable":False,"edit_meta":None,"val_color":DIM})
+    spc()
+
+    hdr2("## FISCAL REPORT")
+    for lbl,val,key,et,vc in [
+        ("Debt Balance", fmt_cr(debt["balance"])+f"  ({debt['load_pct']:.1f}% of IPEU)",
+                         "debt_balance","float",RED_C if debt["balance"]>0 else TEXT),
+        ("Interest Rate",f"{debt['rate']*100:.1f}% / yr","interest_rate","pct",TEXT),
+        ("Quarterly Int.",fmt_cr(debt["q_interest"]),None,None,TEXT),
+        ("Debt Repayment",fmt_cr(debt["repayment"])+" / qtr","debt_repayment","float",TEXT),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,0)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+             "label_w":18,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+    add({"type":"debtbar","h":22,"in_block":True,"pct":debt["load_pct"]/100})
+    sep()
+    sf_col = GREEN if sfund >= 0 else RED_C
+    fd_col = GREEN if fund_delta >= 0 else RED_C
+    add({"type":"row","h":22,"in_block":True,"label":"Strategic Fund",
+         "value":fmt_cr(sfund),"label_w":18,"editable":True,"val_color":sf_col,
+         "edit_meta":{"path":["strategic_fund"],"type":"float","raw":sfund}})
+    fds = ("+"+fmt_cr(fund_delta) if fund_delta>=0 else fmt_cr(fund_delta))
+    add({"type":"row","h":22,"in_block":True,"label":"Fund Δ this turn",
+         "value":fds,"label_w":18,"editable":False,"edit_meta":None,"val_color":fd_col})
+    spc()
+
+    hdr2("## RESOURCES & STOCKPILES")
+    for rname in RESOURCE_NAMES:
+        rd   = rflows.get(rname,{}); stk=rd.get("stockpile",0.0)
+        prod = rd.get("production",0.0); cons=rd.get("consumption",0.0)
+        net  = rd.get("net",0.0); trend=rd.get("trend","Stable")
+        ncol = GREEN if net>=0 else RED_C
+        tcol = GREEN if "Surplus" in trend else (RED_C if "Deficit" in trend else GOLD)
+        ns   = ("+"+fmt_int(net)) if net>=0 else fmt_int(int(net))
+        sd   = nation.get("resource_stockpiles",{}).get(rname,{})
+        mode = sd.get("production_mode","derived")
+        exp_c= next((r2.get("credits",0) for r2 in trade["export_routes"] if r2.get("resource")==rname), 0)
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Stockpile","value":fmt_int(stk),
+             "label_w":28,"editable":True,"val_color":TEXT,
+             "edit_meta":{"path":["resource_stockpiles",rname,"stockpile"],"type":"float","raw":stk}})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Prod/turn","value":fmt_int(prod),
+             "label_w":28,"editable":mode=="flat","val_color":TEXT,
+             "edit_meta":{"path":["resource_stockpiles",rname,"flat_production"],"type":"float","raw":prod}
+                         if mode=="flat" else None})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Cons/turn","value":fmt_int(cons),
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":TEXT})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Net/turn","value":ns,
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":ncol})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Trend","value":trend,
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":tcol})
+        if exp_c > 0:
+            add({"type":"row","h":22,"in_block":True,"label":f"{rname} Export","value":fmt_cr(exp_c),
+                 "label_w":28,"editable":False,"edit_meta":None,"val_color":CYAN})
+        spc(4)
+    spc()
+
+    hdr1("# TERRITORIES")
+    for ss in star_sys:
+        add({"type":"row","h":22,"in_block":False,
+             "label":f"System: {ss['name']}  [{ss.get('coordinates','—')}]",
+             "value":ss.get("notes",""),"label_w":36,"editable":False,"edit_meta":None,"val_color":CYAN})
+        for pl in ss.get("planets",[]):
+            add({"type":"row","h":22,"in_block":True,
+                 "label":f"  ▸ {pl['name']}",
+                 "value":(f"{pl.get('type','?')} · {pl.get('size','?')} · "
+                          f"Hab:{pl.get('habitability',0):.0f}% · "
+                          f"Dev:{pl.get('devastation',0):.0f}% · "
+                          f"Crime:{pl.get('crime_rate',0):.0f}% · "
+                          f"Unrest:{pl.get('unrest',0):.0f}%"),
+                 "label_w":22,"editable":False,"edit_meta":None,"val_color":TEXT})
+            for s in pl.get("settlements",[]):
+                sp_inf = " | ".join(f"{sp['species'][:8]} loy:{sp.get('loyalty',0):.0f}"
+                                    for sp in s.get("populations",[]))
+                add({"type":"row","h":22,"in_block":True,
+                     "label":f"      › {s['name']}",
+                     "value":f"pop:{fmt_pop(s.get('population',0))} {sp_inf}",
+                     "label_w":26,"editable":False,"edit_meta":None,"val_color":DIM})
+    spc()
+
+    hdr2("## NATIONAL DEMOGRAPHICS")
+    add({"type":"row","h":22,"in_block":True,"label":"Total Population","value":fmt_pop(pop),
+         "label_w":22,"editable":False,"edit_meta":None,"val_color":TEXT})
+    add({"type":"row","h":22,"in_block":True,"label":"Loyalty Modifier",
+         "value":f"{nation.get('loyalty_modifier_cg',1.0)*100:.0f}%",
+         "label_w":22,"editable":True,
+         "edit_meta":{"path":["loyalty_modifier_cg"],"type":"float","raw":nation.get("loyalty_modifier_cg",1.0)},
+         "val_color":TEXT})
+    spc(6)
+    for sp in species:
+        is_dom = sp.get("status","") in ("dominant","majority")
+        add({"type":"sphdr","h":28,"name":sp["name"],"status":sp.get("status","?").title(),"dominant":is_dom})
+        sp_pop = sp.get("population",0); shr = sp_pop/pop*100 if pop>0 else 0
+        loy = sp.get("loyalty",75); lc = GREEN if loy>=70 else (GOLD if loy>=40 else RED_C)
+        hap = 70
+        for ss2 in star_sys:
+            for pl2 in ss2.get("planets",[]):
+                for s2 in pl2.get("settlements",[]):
+                    for sp2 in s2.get("populations",[]):
+                        if sp2["species"]==sp["name"]: hap=sp2.get("happiness",70)
+        for lbl,val,meta_key,et,vc in [
+            ("Population",  fmt_pop(sp_pop),  None,None,TEXT),
+            ("Share",       f"{shr:.1f}% of total",None,None,TEXT),
+            ("Growth Rate", fmt_pct(sp.get("growth_rate",0))+" / yr",None,None,TEXT),
+            ("Culture",     sp.get("culture","—"),None,None,TEXT),
+            ("Language",    sp.get("language","—"),None,None,TEXT),
+            ("Religion",    sp.get("religion","—"),None,None,TEXT),
+            ("Loyalty",     f"{loy}/100  {loyalty_bar(loy)}","loyalty","int",lc),
+            ("Happiness",   f"{hap}/100  {loyalty_bar(hap)}",None,None,GOLD),
+        ]:
+            m = {"path":["_species",sp["name"],meta_key],"type":et,"raw":sp.get(meta_key,loy)} if meta_key else None
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":16,"editable":m is not None,"edit_meta":m,"val_color":vc})
+        spc(6)
+
+    hdr1("# MILITARY")
+    for sec, cats in [("## SPACEFLEET",["Spacefleet","Navy"]),
+                      ("## AEROSPACE",["Air Force","Aerospace"]),
+                      ("## GROUND FORCES",["Ground Forces","Ground","Army"])]:
+        hdr2(sec)
+        units = [u for u in afd if u.get("category") in cats]
+        if units:
+            for u in units:
+                cname = u.get("custom_name") or u.get("unit","?")
+                add({"type":"row","h":22,"in_block":True,
+                     "label":f"  {cname}","value":f"×{u.get('count',1)}  {u.get('veterancy','?')}",
+                     "label_w":30,"editable":False,"edit_meta":None,"val_color":DIM})
+        else:
+            add({"type":"row","h":22,"in_block":True,"label":"  None on record","value":"",
+                 "label_w":30,"editable":False,"edit_meta":None,"val_color":DIM2})
+    spc()
+
+    hdr1("# RESEARCH")
+    add({"type":"row","h":22,"in_block":True,"label":"Budget/turn","value":fmt_cr(rbudget),
+         "label_w":18,"editable":True,"val_color":CYAN,
+         "edit_meta":{"path":["research_budget"],"type":"float","raw":rbudget}})
+    for proj in act_res:
+        add({"type":"row","h":22,"in_block":True,
+             "label":f"  [{proj.get('field','?')}] {proj.get('name','?')}",
+             "value":f"{proj.get('progress',0.0):.1f}%",
+             "label_w":38,"editable":False,"edit_meta":None,"val_color":GOLD})
+    for t in (comp_tech[-6:] if comp_tech else []):
+        tname = t if isinstance(t,str) else t.get("name",str(t))
+        add({"type":"row","h":22,"in_block":True,"label":f"  ✓ {tname}","value":"",
+             "label_w":40,"editable":False,"edit_meta":None,"val_color":GREEN})
+    spc(20)
+    return items
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROFILE PANEL  (scroll + render)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class ProfilePanel:
+    """Scrollable profile with click-to-edit."""
     LPAD = 18
-
-    def __init__(self):
-        self.rect      = pygame.Rect(MAIN_X, MAIN_Y, MAIN_W, MAIN_H)
-        self.items     : List[dict] = []
-        self.content_h = 0
-        self.scroll    = Scrollbar(MAIN_X + MAIN_W, MAIN_Y, SCRL_W, MAIN_H)
-        self._hov_i    = -1
-
-    def set_items(self, items: List[dict]):
-        self.items     = items
-        self.content_h = (items[-1]["y"] + items[-1]["h"]) if items else 0
-        self.scroll.set_content(self.content_h, MAIN_H)
-        self.scroll.scroll = 0
-        self.scroll.clamp()
-        self._hov_i    = -1
-
-    def _sy(self, iy: int) -> int:
-        return self.rect.y + iy - self.scroll.scroll
-
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.items = []; self.content_h = 0
+        self.scrl = Scrollbar(0,0,10,100); self._hov = -1
+    def update_layout(self, lay: Layout):
+        self.lay = lay
+        self.scrl.update_rect(lay.sw-lay.scrl_w, lay.my, lay.scrl_w, lay.mh)
+    def set_items(self, items):
+        self.items = items
+        self.content_h = (items[-1]["y"]+items[-1]["h"]) if items else 0
+        self.scrl.set_content(self.content_h, self.lay.mh)
+        self.scrl.scroll = 0; self.scrl.clamp(); self._hov = -1
+    def _sy(self, iy): return self.lay.my + iy - self.scrl.scroll
     def draw(self, surf):
-        pygame.draw.rect(surf, BG, self.rect)
-        surf.set_clip(self.rect)
-
-        f_mono  = gf(13)
-        f_small = gf(11)
-        f_hdr1  = gf(16, mono=False)
-        f_hdr2  = gf(14, mono=False)
-        f_nhdr  = gf(19, mono=False)
-        f_sp    = gf(13, mono=False)
-
-        x0 = self.rect.x + self.LPAD
-        rw = self.rect.w
-
+        lay = self.lay; r = lay.main_rect
+        pygame.draw.rect(surf, BG, r); surf.set_clip(r)
+        fm=gf(13); fs=gf(11); f1=gf(16,mono=False); f2=gf(14,mono=False)
+        fn=gf(19,mono=False); fsp=gf(13,mono=False)
+        x0=r.x+self.LPAD; rw=r.w
         for i, item in enumerate(self.items):
-            sy = self._sy(item["y"])
-            sh = item["h"]
-            if sy + sh < self.rect.y or sy > self.rect.bottom:
-                continue
-
+            sy = self._sy(item["y"]); sh = item["h"]
+            if sy+sh < r.y or sy > r.bottom: continue
             t = item["type"]
-
-            # ── Nation Header ──────────────────────────
-            if t == TN_HDR:
-                pygame.draw.rect(surf, PANEL2, (self.rect.x, sy, rw, sh))
-                pygame.draw.rect(surf, ACCENT, (self.rect.x, sy, 4, sh))
-                # Subtle hex grid bg
-                for gx in range(self.rect.x, self.rect.x + rw, 32):
-                    pygame.draw.line(surf, (16, 24, 36),
-                                     (gx, sy), (gx, sy + sh), 1)
-                name_str = item["name"]
-                tag_str  = f"[{item['tag']}]"
-                tw_tag   = tw(tag_str, f_hdr1)
-                draw_text(surf, tag_str,  x0, sy + 14, f_hdr1, ACCENT)
-                draw_text(surf, "  " + name_str, x0 + tw_tag, sy + 12, f_nhdr, BRIGHT)
-                pygame.draw.line(surf, BORDER2,
-                                 (self.rect.x, sy + sh - 1),
-                                 (self.rect.right, sy + sh - 1), 1)
-
-            # ── Section Header 1 ────────────────────────
-            elif t == T_HDR1:
-                pygame.draw.rect(surf, PANEL2, (self.rect.x, sy, rw, sh))
-                pygame.draw.rect(surf, ACCENT, (self.rect.x, sy, 3, sh))
-                draw_text(surf, item["text"], x0, sy + 10, f_hdr1, CYAN)
-                pygame.draw.line(surf, BORDER,
-                                 (self.rect.x, sy + sh - 1),
-                                 (self.rect.right, sy + sh - 1), 1)
-
-            # ── Section Header 2 ────────────────────────
-            elif t == T_HDR2:
-                pygame.draw.rect(surf, PANEL3, (self.rect.x, sy, rw, sh))
-                pygame.draw.rect(surf, TEAL2, (self.rect.x, sy, 2, sh))
-                draw_text(surf, item["text"], x0, sy + 8, f_hdr2, TEAL)
-
-            # ── Row ─────────────────────────────────────
-            elif t == T_ROW:
-                bg = BLOCK_ALT if (item.get("in_block") and i % 2 == 0) else BLOCK_BG if item.get("in_block") else BG
-                pygame.draw.rect(surf, bg, (self.rect.x, sy, rw, sh))
-                if i == self._hov_i and item.get("editable"):
-                    pygame.draw.rect(surf, HOVER, (self.rect.x, sy, rw, sh))
-
-                label   = item.get("label", "")
-                value   = str(item.get("value", ""))
-                lw_     = item.get("label_w", 18)
-                vcol    = item.get("val_color", TEXT)
-                lbl_str = f"{label:<{lw_}}: "
-                draw_text(surf, lbl_str, x0, sy + 4, f_mono, DIM)
-                loffset = tw(lbl_str, f_mono)
-                draw_text(surf, value, x0 + loffset, sy + 4, f_mono, vcol)
-
+            if t == "nhdr":
+                pygame.draw.rect(surf,PANEL2,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,ACCENT,(r.x,sy,4,sh))
+                for gx in range(r.x, r.x+rw, 32):
+                    pygame.draw.line(surf,(16,24,36),(gx,sy),(gx,sy+sh),1)
+                tag_s = f"[{item['tag']}]"
+                blit_text(surf,tag_s,x0,sy+14,f1,ACCENT)
+                blit_text(surf,"  "+item["name"],x0+tw(tag_s,f1),sy+12,fn,BRIGHT)
+                pygame.draw.line(surf,BORDER2,(r.x,sy+sh-1),(r.right,sy+sh-1),1)
+            elif t == "hdr1":
+                pygame.draw.rect(surf,PANEL2,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,ACCENT,(r.x,sy,3,sh))
+                blit_text(surf,item["text"],x0,sy+10,f1,CYAN)
+                pygame.draw.line(surf,BORDER,(r.x,sy+sh-1),(r.right,sy+sh-1),1)
+            elif t == "hdr2":
+                pygame.draw.rect(surf,PANEL3,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,TEAL2,(r.x,sy,2,sh))
+                blit_text(surf,item["text"],x0,sy+8,f2,TEAL)
+            elif t == "row":
+                bg = BLK2 if (item.get("in_block") and i%2==0) else (BLOCK if item.get("in_block") else BG)
+                pygame.draw.rect(surf,bg,(r.x,sy,rw,sh))
+                if i == self._hov and item.get("editable"):
+                    pygame.draw.rect(surf,HOV,(r.x,sy,rw,sh))
+                lbl = item.get("label",""); val = str(item.get("value",""))
+                lw_ = item.get("label_w",18); vc = item.get("val_color",TEXT)
+                lbl_s = f"{lbl:<{lw_}}: "
+                blit_text(surf,lbl_s,x0,sy+4,fm,DIM)
+                blit_text(surf,val,x0+tw(lbl_s,fm),sy+4,fm,vc)
                 if item.get("editable"):
-                    pygame.draw.rect(surf, TEAL, (self.rect.right - 4, sy, 2, sh))
-
-            # ── Bar Row ─────────────────────────────────
-            elif t == T_BAR:
-                bg = BLOCK_ALT if i % 2 == 0 else BLOCK_BG
-                pygame.draw.rect(surf, bg, (self.rect.x, sy, rw, sh))
-                if i == self._hov_i and item.get("editable"):
-                    pygame.draw.rect(surf, HOVER, (self.rect.x, sy, rw, sh))
-
-                label  = item.get("label","")
-                pct    = item.get("pct", 0.0)
-                amount = item.get("amount","")
-                lbl_s  = f"{label:<22} {pct*100:5.1f}%"
-                draw_text(surf, lbl_s, x0, sy + 5, f_small, DIM)
-                base_x = x0 + tw(lbl_s, f_small) + 8
-                bar_h  = 10
-                bar_y  = sy + (sh - bar_h) // 2
-                draw_bar(surf, base_x, bar_y, 160, bar_h, pct, fg=CYAN)
-                draw_text(surf, amount, base_x + 168, sy + 5, f_small, GOLD)
-
+                    pygame.draw.rect(surf,TEAL,(r.right-4,sy,2,sh))
+            elif t == "bar":
+                bg = BLK2 if i%2==0 else BLOCK
+                pygame.draw.rect(surf,bg,(r.x,sy,rw,sh))
+                if i == self._hov and item.get("editable"):
+                    pygame.draw.rect(surf,HOV,(r.x,sy,rw,sh))
+                lbl_s = f"{item['label']:<22} {item['pct']*100:5.1f}%"
+                blit_text(surf,lbl_s,x0,sy+5,fs,DIM)
+                bx = x0+tw(lbl_s,fs)+8
+                draw_bar(surf,bx,sy+(sh-10)//2,160,10,item["pct"],fg=CYAN)
+                blit_text(surf,item["amount"],bx+168,sy+5,fs,GOLD)
                 if item.get("editable"):
-                    pygame.draw.rect(surf, TEAL, (self.rect.right - 4, sy, 2, sh))
-
-            # ── Debt Bar ────────────────────────────────
-            elif t == T_DEBT:
-                pygame.draw.rect(surf, BLOCK_BG, (self.rect.x, sy, rw, sh))
-                pct    = item.get("pct", 0.0)
-                lbl_s  = f"{'Debt Load':<18}: "
-                draw_text(surf, lbl_s, x0, sy + 5, f_mono, DIM)
-                base_x = x0 + tw(lbl_s, f_mono)
-                fc     = RED_C if pct > 0.5 else (GOLD if pct > 0.2 else GREEN)
-                draw_bar(surf, base_x, sy + 6, 200, 10, pct, fg=fc)
-                draw_text(surf, f"  {pct*100:.1f}%", base_x + 208, sy + 5, f_mono, DIM)
-
-            # ── Separator ───────────────────────────────
-            elif t == T_SEP:
-                my = sy + sh // 2
-                pygame.draw.line(surf, BORDER2,
-                                 (self.rect.x + 6, my),
-                                 (self.rect.right - 6, my), 1)
-
-            # ── Species Header ──────────────────────────
-            elif t == T_SPHDR:
-                pygame.draw.rect(surf, PANEL3, (self.rect.x, sy, rw, sh))
-                pygame.draw.rect(surf, GOLD2, (self.rect.x, sy, 3, sh))
-                crown  = "👑" if item.get("dominant") else "👥"
-                sname  = item["name"]
-                status = item["status"]
-                label  = f"{crown}  {sname}"
-                draw_text(surf, label, x0, sy + 6, f_sp, GOLD)
-                lw_ = tw(label, f_sp)
-                draw_text(surf, f"  {status}", x0 + lw_, sy + 7, gf(12, mono=False), TEAL)
-
-            # T_SPC is a no-op
-
+                    pygame.draw.rect(surf,TEAL,(r.right-4,sy,2,sh))
+            elif t == "debtbar":
+                pygame.draw.rect(surf,BLOCK,(r.x,sy,rw,sh))
+                lbl_s = f"{'Debt Load':<18}: "
+                blit_text(surf,lbl_s,x0,sy+5,fm,DIM)
+                bx = x0+tw(lbl_s,fm); pct=item["pct"]
+                fc = RED_C if pct>0.5 else (GOLD if pct>0.2 else GREEN)
+                draw_bar(surf,bx,sy+6,200,10,pct,fg=fc)
+                blit_text(surf,f"  {pct*100:.1f}%",bx+208,sy+5,fm,DIM)
+            elif t == "sep":
+                my = sy+sh//2
+                pygame.draw.line(surf,BORDER2,(r.x+6,my),(r.right-6,my),1)
+            elif t == "sphdr":
+                pygame.draw.rect(surf,PANEL3,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,GOLD2,(r.x,sy,3,sh))
+                crown = "👑" if item.get("dominant") else "👥"
+                lbl = f"{crown}  {item['name']}"
+                blit_text(surf,lbl,x0,sy+6,fsp,GOLD)
+                blit_text(surf,f"  {item['status']}",x0+tw(lbl,fsp),sy+7,gf(12,mono=False),TEAL)
         surf.set_clip(None)
-        pygame.draw.rect(surf, BORDER, self.rect, 1)
-        self.scroll.draw(surf)
+        pygame.draw.rect(surf,BORDER,r,1)
+        self.scrl.draw(surf)
 
     def on_event(self, event) -> Optional[dict]:
-        over = pygame.Rect(self.rect.x, self.rect.y,
-                            self.rect.w + SCRL_W, self.rect.h)
-        self.scroll.on_event(event, over.collidepoint(pygame.mouse.get_pos()))
-
-        if event.type == pygame.MOUSEMOTION:
-            pos = event.pos
-            if self.rect.collidepoint(pos):
-                abs_y = pos[1] - self.rect.y + self.scroll.scroll
-                self._hov_i = -1
-                for i, item in enumerate(self.items):
-                    if item["y"] <= abs_y < item["y"] + item["h"]:
-                        self._hov_i = i if item.get("editable") else -1
-                        break
-            else:
-                self._hov_i = -1
-
+        lay = self.lay
+        over = pygame.Rect(lay.mx,lay.my,lay.mw+lay.scrl_w,lay.mh)
+        self.scrl.on_event(event, over.collidepoint(pygame.mouse.get_pos()))
+        if event.type == pygame.MOUSEMOTION and lay.main_rect.collidepoint(event.pos):
+            abs_y = event.pos[1]-lay.my+self.scrl.scroll; self._hov = -1
+            for i,item in enumerate(self.items):
+                if item["y"] <= abs_y < item["y"]+item["h"]:
+                    self._hov = i if item.get("editable") else -1; break
+        elif event.type == pygame.MOUSEMOTION: self._hov = -1
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            pos = event.pos
-            scrl_r = pygame.Rect(MAIN_X + MAIN_W, MAIN_Y, SCRL_W, MAIN_H)
-            if self.rect.collidepoint(pos) and not scrl_r.collidepoint(pos):
-                abs_y = pos[1] - self.rect.y + self.scroll.scroll
+            sr = pygame.Rect(lay.sw-lay.scrl_w,lay.my,lay.scrl_w,lay.mh)
+            if lay.main_rect.collidepoint(event.pos) and not sr.collidepoint(event.pos):
+                abs_y = event.pos[1]-lay.my+self.scrl.scroll
                 for item in self.items:
-                    if item["y"] <= abs_y < item["y"] + item["h"]:
+                    if item["y"] <= abs_y < item["y"]+item["h"]:
                         if item.get("editable") and item.get("edit_meta"):
-                            return {
-                                "label": item.get("label","Field"),
-                                "raw":   item["edit_meta"].get("raw",""),
-                                "meta":  item["edit_meta"],
-                            }
+                            return {"label":item.get("label","Field"),
+                                    "raw":item["edit_meta"].get("raw",""),
+                                    "meta":item["edit_meta"]}
                         break
         return None
 
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# TOP BAR
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-def draw_top_bar(surf, nation_name: str, turn, year, quarter, dirty: bool):
-    pygame.draw.rect(surf, PANEL, (0, 0, SW, TBAR_H))
-    pygame.draw.rect(surf, ACCENT, (0, TBAR_H - 2, SW, 2))
-    # subtle grid
-    for gx in range(0, LWIDTH, 20):
-        pygame.draw.line(surf, (14, 20, 30), (gx, 0), (gx, TBAR_H))
-
-    f_s  = gf(11)
-    f_m  = gf(14, mono=False)
-    draw_text(surf, "CARMINE NRP ENGINE  ·  vAlpha 0.2.2",
-              LWIDTH + 14, 6, f_s, DIM)
-    if nation_name:
-        draw_text(surf, nation_name,
-                  LWIDTH + 14, 22, f_m, BRIGHT)
-    tag  = f"T{turn}  |  Y{year} Q{quarter}"
-    if dirty:
-        tag += "  ●"
-    draw_text(surf, tag, SW - tw(tag, f_s) - 14, 17, f_s, TEAL)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# STATUS BAR
+# SYSTEM MAP PANEL
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-_status    = "Ready.  Double-click fields to edit."
-_status_c  = DIM
-_status_t  = 0.0
+class SystemMapPanel:
+    """2-D orbital diagram for the nation's home system."""
+    PCOL = {"Terrestrial":(0,180,80),"Gas Giant":(200,120,20),
+            "Ice World":(100,200,240),"Barren":(120,100,80),"Oceanic":(20,80,200)}
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.nation = None; self.sel_planet = None
+        self._prects = {}; self._btn_exp = None
+    def update_layout(self, lay): self.lay = lay
+    def set_nation(self, n): self.nation = n; self.sel_planet = None
 
+    def draw(self, surf):
+        lay = self.lay; r = lay.main_rect
+        pygame.draw.rect(surf, BG, r)
+        if not self.nation:
+            blit_text(surf,"No nation selected",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        star_sys = self.nation.get("star_systems",[])
+        if not star_sys:
+            blit_text(surf,"No system data",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        sys0 = star_sys[0]; planets = sys0.get("planets",[])
+        detail_w = 310 if self.sel_planet else 0
+        map_w = r.w - detail_w; cx = r.x+map_w//2; cy = r.y+r.h//2
+        # Star
+        pygame.draw.circle(surf,(255,220,60),(cx,cy),22)
+        pygame.draw.circle(surf,(255,255,140),(cx,cy),16)
+        blit_text(surf,"★",cx-7,cy-9,gf(16,False),(255,240,100))
+        max_r = min(map_w, r.h)*0.44; step = max_r/max(len(planets),1)
+        self._prects = {}
+        for idx, pl in enumerate(planets):
+            orb_r = int(step*(idx+1))
+            pygame.draw.circle(surf,(20,35,55),(cx,cy),orb_r,1)
+            angle = math.pi*0.5 + idx*0.9
+            px = int(cx+orb_r*math.cos(angle)); py = int(cy+orb_r*math.sin(angle))
+            ptype = pl.get("type","Terrestrial"); pcol = self.PCOL.get(ptype,(80,80,120))
+            dev = pl.get("devastation",0)/100.0
+            if dev > 0.1:
+                pcol = tuple(int(c*(1-dev)+RED_C[i]*dev) for i,c in enumerate(pcol))
+            pr = 8+idx*2
+            pygame.draw.circle(surf,pcol,(px,py),pr)
+            pygame.draw.circle(surf,BRIGHT,(px,py),pr,1)
+            if pl is self.sel_planet:
+                pygame.draw.circle(surf,CYAN,(px,py),pr+5,2)
+            fn = gf(11); pname = pl["name"]
+            blit_text(surf,pname,px-tw(pname,fn)//2,py+pr+4,fn,TEXT)
+            if pl.get("crime_rate",0)>30: pygame.draw.circle(surf,RED_C,(px+pr,py-pr),4)
+            if pl.get("unrest",0)>20:     pygame.draw.circle(surf,GOLD,(px-pr,py-pr),4)
+            self._prects[pl["name"]] = (pl, pygame.Rect(px-pr-2,py-pr-2,pr*2+4,pr*2+4))
+        blit_text(surf,f"★  {sys0['name']}",r.x+14,r.y+12,gf(16,False),BRIGHT)
+        blit_text(surf,f"{len(planets)} planet(s)",r.x+14,r.y+34,gf(11),TEAL)
+        blit_text(surf,"● Crime>30%",r.x+map_w-140,r.y+14,gf(10),RED_C)
+        blit_text(surf,"● Unrest>20%",r.x+map_w-140,r.y+28,gf(10),GOLD)
+        # Detail drawer
+        self._btn_exp = None
+        if self.sel_planet:
+            pl = self.sel_planet
+            dr = pygame.Rect(r.right-detail_w,r.y,detail_w,r.h)
+            pygame.draw.rect(surf,PANEL2,dr)
+            pygame.draw.line(surf,BORDER2,(dr.x,dr.y),(dr.x,dr.bottom),1)
+            corner_deco(surf,dr.x,dr.y,dr.w,dr.h,CYAN,8)
+            x=dr.x+12; y=dr.y+10; f=gf(12); fs=gf(11)
+            blit_text(surf,pl["name"],x,y,gf(15,False),BRIGHT); y+=22
+            pygame.draw.line(surf,BORDER2,(dr.x+4,y),(dr.right-4,y),1); y+=8
+            for lbl,val in [("Type",pl.get("type","?")),("Size",pl.get("size","?")),
+                             ("Habitability",f"{pl.get('habitability',0):.0f}%"),
+                             ("Devastation",f"{pl.get('devastation',0):.0f}%"),
+                             ("Crime Rate",f"{pl.get('crime_rate',0):.0f}%"),
+                             ("Unrest",f"{pl.get('unrest',0):.0f}%")]:
+                blit_text(surf,f"{lbl:<16}: ",x,y,fs,DIM)
+                blit_text(surf,val,x+tw(f"{lbl:<16}: ",fs),y,fs,TEXT); y+=18
+            y+=4; blit_text(surf,"SETTLEMENTS",x,y,fs,TEAL); y+=16
+            for s in pl.get("settlements",[]):
+                blit_text(surf,f"  › {s['name']}  pop:{fmt_pop(s.get('population',0))}",x,y,fs,TEXT); y+=16
+                for sp in s.get("populations",[]):
+                    loy=sp.get("loyalty",0); lc=GREEN if loy>=70 else(GOLD if loy>=40 else RED_C)
+                    blit_text(surf,f"    {sp['species'][:12]}  loy:{loy:.0f}  hap:{sp.get('happiness',0):.0f}",
+                              x,y,gf(10),lc); y+=14
+            y+=6; blit_text(surf,"ORBITAL BUILDINGS",x,y,fs,TEAL); y+=16
+            obs = pl.get("orbital_buildings",[])
+            if obs:
+                for ob in obs: blit_text(surf,f"  ⊕ {ob.get('type','?')} [{ob.get('status','?')}]",x,y,fs,DIM); y+=16
+            else: blit_text(surf,"  None",x,y,fs,DIM2)
+            bx = dr.x+(dr.w-160)//2; by = dr.bottom-42
+            self._btn_exp = Button((bx,by,160,28),"[EXPORT SYSTEM  D]",small=True)
+            self._btn_exp.draw(surf)
+        pygame.draw.rect(surf,BORDER,r,1)
 
-def set_status(msg: str, col=DIM):
-    global _status, _status_c, _status_t
-    _status   = msg
-    _status_c = col
-    _status_t = time.time()
+    def on_event(self, event, state) -> Optional[str]:
+        if self._btn_exp and self._btn_exp.on_event(event) and self.nation:
+            return self._export_discord(self.nation)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for pname,(pl,pr) in self._prects.items():
+                if pr.collidepoint(event.pos):
+                    self.sel_planet = pl; return None
+        return None
 
-
-def draw_status_bar(surf):
-    y = SH - SBAR_H
-    pygame.draw.rect(surf, PANEL,  (0, y, SW, SBAR_H))
-    pygame.draw.line(surf, BORDER, (0, y), (SW, y), 1)
-    f = gf(11)
-    draw_text(surf, _status, 12, y + 7, f, _status_c)
-    keys = "S=Save  D=Export  ESC=Cancel/Quit  ↑↓=Navigate  Click=Edit"
-    draw_text(surf, keys, SW - tw(keys, f) - 12, y + 7, f, DIM2)
-
+    def _export_discord(self, nation) -> str:
+        star_sys = nation.get("star_systems",[])
+        if not star_sys: return ""
+        ss = star_sys[0]; tag = nation_tag(nation["name"]); L=[]; ln=L.append
+        ln(f"-# [{tag}] {nation['name'].upper()} — SYSTEM REPORT")
+        ln(f"# STAR SYSTEM: {ss['name']}")
+        for pl in ss.get("planets",[]):
+            ln("```")
+            ln(f"  {pl['name']}")
+            for k,v in [("Type",pl.get("type","?")),("Size",pl.get("size","?")),
+                         ("Habitability",f"{pl.get('habitability',0):.0f}%"),
+                         ("Devastation",f"{pl.get('devastation',0):.0f}%"),
+                         ("Crime Rate",f"{pl.get('crime_rate',0):.0f}%"),
+                         ("Unrest",f"{pl.get('unrest',0):.0f}%")]:
+                ln(f"    {k:<16}: {v}")
+            for s in pl.get("settlements",[]): ln(f"      › {s['name']}  pop:{fmt_pop(s.get('population',0))}")
+            for ob in pl.get("orbital_buildings",[]): ln(f"      ⊕ {ob.get('type','?')} [{ob.get('status','?')}]")
+            ln("```")
+        return "\n".join(L)
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# BACKGROUND
+# EVENT LOG PANEL
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def draw_bg(surf):
-    surf.fill(BG)
-    gc = (11, 18, 28)
-    for x in range(0, SW, 36):
-        pygame.draw.line(surf, gc, (x, 0), (x, SH))
-    for y in range(0, SH, 36):
-        pygame.draw.line(surf, gc, (0, y), (SW, y))
+class EventLogPanel:
+    """Filter / approve / edit / delete d20 events."""
+    RH = 64
+    SEV_COL = {"Critical":RED_C,"Major":GOLD,"Minor":CYAN,"Info":DIM}
+    def __init__(self, lay: Layout):
+        self.lay=lay; self.state=None; self.nation_filter=None
+        self.scrl=Scrollbar(0,0,10,100); self._hov=-1; self._events=[]
+    def update_layout(self, lay):
+        self.lay=lay; self.scrl.update_rect(lay.sw-lay.scrl_w,lay.my,lay.scrl_w,lay.mh)
+    def set_state(self, state, nation_filter=None):
+        self.state=state; self.nation_filter=nation_filter; self._refresh()
+    def _refresh(self):
+        if not self.state: self._events=[]; return
+        self._events=EventLog(self.state).filter(nation=self.nation_filter)
+        self.scrl.set_content(len(self._events)*self.RH+60, self.lay.mh); self.scrl.clamp()
 
+    def draw(self, surf):
+        lay=self.lay; r=lay.main_rect
+        pygame.draw.rect(surf,BG,r)
+        if not self.state:
+            blit_text(surf,"No state loaded.",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        # Toolbar
+        TH=36; pygame.draw.rect(surf,PANEL2,(r.x,r.y,r.w,TH))
+        pygame.draw.line(surf,BORDER2,(r.x,r.y+TH),(r.right,r.y+TH),1)
+        turn=self.state.get("turn",1)
+        approved=sum(1 for e in self._events if e.get("gm_approved"))
+        blit_text(surf,f"T{turn}  Events: {len(self._events)}  Approved: {approved}  |  D = Export Galactic News",
+                  r.x+14,r.y+11,gf(12),TEAL)
+        if not self._events:
+            blit_text(surf,"No events — advance the turn to generate d20 rolls.",r.x+20,r.y+TH+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); self.scrl.draw(surf); return
+        surf.set_clip(pygame.Rect(r.x,r.y+TH,r.w,r.h-TH))
+        f=gf(12); fs=gf(11); f10=gf(10)
+        for i,ev in enumerate(self._events):
+            iy=r.y+TH+i*self.RH-self.scrl.scroll
+            if iy+self.RH<r.y or iy>r.bottom: continue
+            sev=ev.get("severity","Info"); scol=self.SEV_COL.get(sev,DIM)
+            bg=PANEL if i%2==0 else PANEL2
+            pygame.draw.rect(surf,bg,(r.x,iy,r.w,self.RH))
+            if i==self._hov: pygame.draw.rect(surf,HOV,(r.x,iy,r.w,self.RH))
+            pygame.draw.rect(surf,scol,(r.x,iy,3,self.RH))
+            icon=SEVERITY_EMOJI.get(sev,"📊")
+            scope=ev.get("nation","?"); planet=ev.get("planet")
+            if planet: scope+=f" | {planet}"
+            blit_text(surf,f"{icon} {ev.get('title','?')}",r.x+12,iy+6,f,BRIGHT)
+            blit_text(surf,scope,r.x+12,iy+24,fs,TEAL)
+            roll_s=f"d20={ev.get('d20_roll','?')}"; roll=ev.get("d20_roll",10)
+            rc=RED_C if roll<=3 else(GOLD if roll<=7 else(GREEN if roll>=17 else DIM))
+            blit_text(surf,roll_s,r.x+12,iy+42,f10,rc)
+            blit_text(surf,f"T{ev.get('turn','?')}  {sev}",r.x+80,iy+42,f10,DIM)
+            # Body preview
+            body=ev.get("body",""); bp=body[:100]+("…" if len(body)>100 else "")
+            blit_text(surf,bp,r.x+200,iy+42,f10,DIM2)
+            # Approve button area
+            appr=ev.get("gm_approved",False)
+            ax=r.right-160
+            pygame.draw.rect(surf,GREEN2 if appr else BTNBG,(ax,iy+12,130,22),border_radius=2)
+            pygame.draw.rect(surf,GREEN if appr else BORDER2,(ax,iy+12,130,22),1,border_radius=2)
+            astr="✓  APPROVED" if appr else "  APPROVE"
+            blit_text(surf,astr,ax+(130-tw(astr,f10))//2,iy+18,f10,BRIGHT)
+            edited=ev.get("gm_edited",False)
+            if edited: blit_text(surf,"[edited]",ax,iy+38,f10,TEAL)
+        surf.set_clip(None); self.scrl.draw(surf)
+        pygame.draw.rect(surf,BORDER,r,1)
+
+    def on_event(self, event, edit_overlay: EditOverlay) -> Optional[str]:
+        lay=self.lay; r=lay.main_rect
+        over=r.collidepoint(pygame.mouse.get_pos())
+        self.scrl.on_event(event, over)
+        TH=36
+        if event.type==pygame.MOUSEMOTION and r.collidepoint(event.pos):
+            abs_y=event.pos[1]-r.y-TH+self.scrl.scroll
+            self._hov=max(0,abs_y//self.RH) if abs_y>=0 else -1
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and r.collidepoint(event.pos):
+            abs_y=event.pos[1]-r.y-TH+self.scrl.scroll
+            idx=abs_y//self.RH
+            if 0<=idx<len(self._events):
+                ev=self._events[idx]; ax=r.right-160
+                if event.pos[0]>=ax:
+                    EventLog(self.state).approve(ev["event_id"]); self._refresh()
+                else:
+                    edit_overlay.open(f"Event {ev['event_id']} body",ev.get("body",""),
+                                      {"path":["_event",ev["event_id"]],"type":"str","raw":ev.get("body","")})
+        return None
+
+    def apply_body_edit(self, event_id, new_body):
+        EventLog(self.state).edit_body(event_id, new_body); self._refresh()
+
+    def export_news(self) -> str:
+        if not self.state: return ""
+        return discord_galactic_news(self.state, self.state.get("turn",1))
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# MAIN
+# MARKET PANEL
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-def main():
-    pygame.init()
-    pygame.display.set_caption("Carmine NRP Engine  —  vAlpha 0.2.2")
-    screen = pygame.display.set_mode((SW, SH))
-    clock  = pygame.time.Clock()
+class MarketPanel:
+    """Live price table + modifier editor."""
+    RH = 30
+    def __init__(self, lay: Layout):
+        self.lay=lay; self.state=None; self._hov=-1
+        self._price_rects=[]; self._btn_fluc=None; self._btn_exp=None
+    def update_layout(self, lay): self.lay=lay
+    def set_state(self, state): self.state=state
 
-    filepath = sys.argv[1] if len(sys.argv) > 1 else "carmine_state_T5_Y2201Q1.json"
-    sm       = StateManager(filepath)
-    if not sm.load():
-        pygame.quit()
-        sys.exit(f"[FATAL] Cannot load: {filepath}")
+    def draw(self, surf):
+        lay=self.lay; r=lay.main_rect
+        pygame.draw.rect(surf,BG,r)
+        if not self.state:
+            blit_text(surf,"No state loaded.",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        me=MarketEngine(self.state.get("market",{})); prices=me.get_prices()
+        x=r.x+20; y=r.y+14; f=gf(13); fh=gf(15,False); fs=gf(11); f10=gf(10)
+        blit_text(surf,"# GALACTIC MARKET",x,y,fh,CYAN); y+=30
+        HDR=f"  {'Resource':<20} {'Base':>10}  {'Modifier':>10}  {'Effective':>12}  Trend  (sparkline)"
+        blit_text(surf,HDR,x,y,fs,DIM); y+=6
+        pygame.draw.line(surf,BORDER2,(x,y),(r.right-20,y),1); y+=8
+        TRCOL={"▲":GREEN,"▼":RED_C,"─":DIM}
+        self._price_rects=[]
+        for i,row in enumerate(prices):
+            iy=y+i*self.RH; bg=BLOCK if i%2==0 else BLK2
+            pygame.draw.rect(surf,bg,(r.x,iy,r.w,self.RH))
+            if i==self._hov: pygame.draw.rect(surf,HOV,(r.x,iy,r.w,self.RH))
+            pygame.draw.rect(surf,TEAL2,(r.x,iy,2,self.RH))
+            ln_=f"  {row['resource']:<20} {row['base']:>10.2f} cr  x{row['modifier']:>8.3f}  {row['effective']:>10.2f} cr"
+            blit_text(surf,ln_,x,iy+8,f,TEXT)
+            tc=TRCOL.get(row["trend"],DIM)
+            blit_text(surf,row["trend"],x+tw(ln_,f)+6,iy+8,f,tc)
+            # Sparkline
+            hist=row.get("history",[]); sx=r.right-200; sy=iy+3; sw_=150; sh_=24
+            if len(hist)>=2:
+                mn=min(hist); mx_=max(hist); rng=max(mx_-mn,0.001)
+                pts=[(sx+int(j/(len(hist)-1)*sw_),
+                      sy+int((1-(h-mn)/rng)*sh_)) for j,h in enumerate(hist)]
+                pygame.draw.lines(surf,TEAL,False,pts,1)
+            blit_text(surf,"[edit mod]",r.right-60,iy+10,f10,DIM)
+            self._price_rects.append((row, pygame.Rect(r.x,iy,r.w,self.RH)))
+        by=r.bottom-50; bx=x
+        self._btn_fluc=Button((bx,by,140,30),"[ FLUCTUATE ]",accent=True)
+        self._btn_exp =Button((bx+154,by,180,30),"[ EXPORT MARKET  D ]")
+        self._btn_fluc.draw(surf); self._btn_exp.draw(surf)
+        psst=self.state.get("market",{}).get("psst_nations",[])
+        if psst: blit_text(surf,f"PSST: {', '.join(psst)}",x,by-22,fs,GOLD)
+        pygame.draw.rect(surf,BORDER,r,1)
 
-    set_status(f"Loaded: {filepath}", GREEN)
+    def on_event(self, event, edit_overlay: EditOverlay, sm) -> Optional[str]:
+        r=self.lay.main_rect
+        if event.type==pygame.MOUSEMOTION and r.collidepoint(event.pos):
+            for i,(_,pr) in enumerate(self._price_rects):
+                if pr.collidepoint(event.pos): self._hov=i; break
+            else: self._hov=-1
+        if self._btn_fluc and self._btn_fluc.on_event(event):
+            MarketEngine(self.state.get("market",{})).fluctuate_all()
+            sm.mark_dirty(); sm.autosave(); set_status("Market fluctuated.",GOLD); return None
+        if self._btn_exp and self._btn_exp.on_event(event):
+            return discord_market_report(self.state)
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            for row,pr in self._price_rects:
+                if pr.collidepoint(event.pos):
+                    edit_overlay.open(f"{row['resource']} modifier",row["modifier"],
+                                      {"path":["_market",row["resource"]],"type":"float","raw":row["modifier"]})
+                    return None
+        if self._btn_fluc: self._btn_fluc.on_event(event)
+        if self._btn_exp:  self._btn_exp.on_event(event)
+        return None
 
-    names    = sm.nation_names()
-    sel_idx  = 0
-    turn     = sm.state.get("turn",    1)
-    year     = sm.state.get("year",    2200)
-    quarter  = sm.state.get("quarter", 1)
+    def apply_market_edit(self, resource, new_val, sm):
+        MarketEngine(self.state.get("market",{})).set_modifier(resource, new_val)
+        sm.mark_dirty(); sm.autosave(); set_status(f"{resource} modifier → {new_val:.3f}",GREEN)
 
-    left    = LeftPanel(LWIDTH, SH)
-    left.set_nations(names, sel_idx)
-    main_p  = MainPanel()
-    edit_ov = EditOverlay()
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TRADE ROUTE MODAL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    cur_nation: Optional[dict] = None
+class TradeModal:
+    """Full-screen modal for building a trade route."""
+    DIST_OPTS = list(PIRATE_BASE_RISK.keys())
+    def __init__(self):
+        self.active=False; self.state=None; self._exporter=""; self._importer=""
+        self._resource=RESOURCE_NAMES[0]; self._export_pct=0.25; self._escort=0.0
+        self._modifier=1.0; self._dist_idx=0; self._transits=[]; self._preview=None
+        self._err=""; self._drag_pct=False; self._drag_esc=False
+        self._res_rects=[]; self._dist_rects=[]; self._pct_slider=None; self._esc_slider=None
+        self._btn_confirm=None; self._btn_export=None; self._btn_cancel=None
 
-    def load_nation(idx: int):
-        nonlocal cur_nation, sel_idx
-        sel_idx    = idx
-        left.selected = idx
-        n = sm.get_nation(names[idx])
-        if n:
-            cur_nation = n
-            items = build_render_items(n, sm.state)
-            main_p.set_items(items)
-            set_status(f"Viewing: {n['name']}   Click any cyan-edged field to edit.", CYAN)
-        return n
+    def open(self, state, sel_nation_name):
+        self.active=True; self.state=state
+        self._exporter=sel_nation_name or ""; self._importer=""
+        self._preview=None; self._err=""; self._transits=[]; self._recalc()
 
-    load_nation(0)
+    def close(self): self.active=False
 
-    prev_t = time.time()
-    running = True
+    def _nation(self, name):
+        for n in self.state.get("nations",[]): 
+            if n["name"]==name: return n
+        return None
 
-    while running:
-        now = time.time()
-        dt  = now - prev_t
-        prev_t = now
+    def _recalc(self):
+        if not self.state or not self._exporter or not self._importer: return
+        en=self._nation(self._exporter)
+        if not en: return
+        try:
+            eng=TradeRouteEngine(self.state)
+            avail=eng.available_export(en,self._resource)
+            qty=avail*self._export_pct
+            dist=self.DIST_OPTS[self._dist_idx]
+            self._preview=eng.calculate(self._exporter,self._importer,self._resource,
+                                        qty,self._transits,dist,self._escort,self._modifier)
+            self._err=""
+        except Exception as e: self._err=str(e); self._preview=None
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+    def draw(self, surf, lay: Layout):
+        if not self.active: return
+        ov=pygame.Surface((lay.sw,lay.sh),pygame.SRCALPHA); ov.fill((0,0,0,180)); surf.blit(ov,(0,0))
+        mw=min(lay.sw-60,920); mh=min(lay.sh-60,660)
+        mx=(lay.sw-mw)//2; my=(lay.sh-mh)//2; r=pygame.Rect(mx,my,mw,mh)
+        pygame.draw.rect(surf,MODALBG,r); pygame.draw.rect(surf,MODALBDR,r,2)
+        corner_deco(surf,mx,my,mw,mh,CYAN,12)
+        fh=gf(16,False); f=gf(13); fs=gf(11); f10=gf(10)
+        x=mx+20; y=my+14
+        blit_text(surf,"TRADE ROUTE BUILDER",x,y,fh,CYAN); y+=28
+        pygame.draw.line(surf,BORDER2,(mx+4,y),(mx+mw-4,y),1); y+=10
+        col1w=(mw-60)//2; col2x=x+col1w+20; cy=y
 
-            # ── Edit overlay captures all events ──────
-            if edit_ov.active:
-                res = edit_ov.on_event(event)
-                if res == "confirm":
-                    ok = apply_edit(cur_nation, edit_ov.meta, edit_ov.text)
-                    if ok:
-                        sm.mark_dirty()
-                        sm.autosave()
-                        main_p.set_items(build_render_items(cur_nation, sm.state))
-                        set_status(f"Updated: {edit_ov.meta['path'][-1]}", GREEN)
-                    else:
-                        set_status(f"Invalid value: '{edit_ov.text}'", RED_C)
-                    edit_ov.close()
-                elif res == "cancel":
-                    edit_ov.close()
-                    set_status("Edit cancelled.", DIM)
-                continue
+        # --- LEFT COLUMN ---
+        blit_text(surf,"Exporter:",x,cy,fs,DIM); cy+=16
+        pygame.draw.rect(surf,BORDER2 if self._exporter else BORDER,(x,cy,col1w-10,22),1)
+        blit_text(surf,self._exporter or "(select in sidebar)",x+4,cy+4,f,BRIGHT if self._exporter else DIM)
+        cy+=26; blit_text(surf,"Importer:",x,cy,fs,DIM); cy+=16
+        pygame.draw.rect(surf,BORDER,(x,cy,col1w-10,22),1)
+        blit_text(surf,self._importer or "(type nation name)",x+4,cy+4,f,BRIGHT if self._importer else DIM)
+        self._imp_rect=pygame.Rect(x,cy,col1w-10,22); cy+=26
 
-            # ── Keyboard shortcuts ────────────────────
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif event.key == pygame.K_s:
-                    sm.save()
-                    set_status("Saved with backup rotation.", GREEN)
-                elif event.key == pygame.K_d:
-                    if cur_nation:
-                        txt   = format_discord_v2(cur_nation, sm.state)
-                        fname = f"discord_{cur_nation['name'].replace(' ','_')}_T{turn}.txt"
-                        with open(fname, "w", encoding="utf-8") as fo:
-                            fo.write(txt)
-                        set_status(f"Discord export → {fname}", CYAN)
-                elif event.key == pygame.K_UP:
-                    if sel_idx > 0:
-                        load_nation(sel_idx - 1)
-                elif event.key == pygame.K_DOWN:
-                    if sel_idx < len(names) - 1:
-                        load_nation(sel_idx + 1)
-                elif event.key in (pygame.K_PAGEDOWN, pygame.K_SPACE):
-                    main_p.scroll.scroll += MAIN_H // 2
-                    main_p.scroll.clamp()
-                elif event.key == pygame.K_PAGEUP:
-                    main_p.scroll.scroll -= MAIN_H // 2
-                    main_p.scroll.clamp()
+        blit_text(surf,"Resource:",x,cy,fs,DIM); cy+=16
+        slot_w=(col1w-10)//len(RESOURCE_NAMES)-2; self._res_rects=[]
+        for i,rn in enumerate(RESOURCE_NAMES):
+            sel=rn==self._resource; rx=x+i*(slot_w+2)
+            bg=TABACT if sel else PANEL2
+            pygame.draw.rect(surf,bg,(rx,cy,slot_w,20),border_radius=2)
+            if sel: pygame.draw.rect(surf,CYAN,(rx,cy,slot_w,20),1,border_radius=2)
+            blit_text(surf,rn[:7],rx+2,cy+4,f10,BRIGHT if sel else DIM)
+            self._res_rects.append((rn,pygame.Rect(rx,cy,slot_w,20)))
+        cy+=28
+        blit_text(surf,f"Export %:  {self._export_pct*100:.0f}%",x,cy,fs,DIM); cy+=16
+        sw_=col1w-10; draw_bar(surf,x,cy,sw_,12,self._export_pct,fg=CYAN)
+        self._pct_slider=pygame.Rect(x,cy,sw_,12); cy+=20
+        if self._exporter and self.state:
+            en=self._nation(self._exporter)
+            if en:
+                eng=TradeRouteEngine(self.state)
+                avail=eng.available_export(en,self._resource); qty=avail*self._export_pct
+                blit_text(surf,f"Avail: {fmt_int(avail)}  Qty/turn: {fmt_int(qty)}",x,cy,fs,TEAL)
+        cy+=20
 
-            # ── Left panel ───────────────────────────
-            clicked = left.on_event(event)
-            if clicked is not None:
-                load_nation(clicked)
+        blit_text(surf,"Pirate distance:",x,cy,fs,DIM); cy+=16
+        dslot=(col1w-10)//len(self.DIST_OPTS)-2; self._dist_rects=[]
+        for i,d in enumerate(self.DIST_OPTS):
+            sel=i==self._dist_idx; dx=x+i*(dslot+2)
+            bg=TABACT if sel else PANEL2
+            pygame.draw.rect(surf,bg,(dx,cy,dslot,20),border_radius=2)
+            if sel: pygame.draw.rect(surf,GOLD,(dx,cy,dslot,20),1,border_radius=2)
+            blit_text(surf,d[:9],dx+2,cy+4,f10,BRIGHT if sel else DIM)
+            self._dist_rects.append((i,pygame.Rect(dx,cy,dslot,20)))
+        cy+=28
+        blit_text(surf,f"Escort: {self._escort:.0f}%",x,cy,fs,DIM); cy+=16
+        draw_bar(surf,x,cy,sw_,12,self._escort/100,fg=GREEN2)
+        self._esc_slider=pygame.Rect(x,cy,sw_,12); cy+=24
+        blit_text(surf,f"Route modifier: x{self._modifier:.2f}",x,cy,fs,DIM); cy+=16
 
-            if left.btn_save.on_event(event):
-                sm.save()
-                set_status("Saved. Backups rotated.", GREEN)
-            if left.btn_disc.on_event(event):
-                if cur_nation:
-                    txt   = format_discord_v2(cur_nation, sm.state)
-                    fname = f"discord_{cur_nation['name'].replace(' ','_')}_T{turn}.txt"
-                    with open(fname, "w", encoding="utf-8") as fo:
-                        fo.write(txt)
-                    set_status(f"Discord export → {fname}", CYAN)
-            if left.btn_init.on_event(event):
-                if cur_nation:
-                    n = initialize_settlements(cur_nation, sm.state, force=False)
-                    if n > 0:
-                        sm.mark_dirty()
-                        sm.autosave()
-                        main_p.set_items(build_render_items(cur_nation, sm.state))
-                        set_status(f"Settlements created on {n} planet(s).", GREEN)
-                    else:
-                        set_status("Settlements already exist. Use force to re-init.", GOLD)
+        # transit list
+        blit_text(surf,"Transit nations:",x,cy,fs,DIM); cy+=16
+        for t in self._transits:
+            blit_text(surf,f"  {t['nation']}  {t['tax_rate']*100:.1f}%",x,cy,f10,TEXT); cy+=16
 
-            # ── Main panel ───────────────────────────
-            ed = main_p.on_event(event)
-            if ed:
-                edit_ov.open(ed["label"], ed["raw"], ed["meta"])
+        # --- RIGHT COLUMN: live preview ---
+        ry=y; blit_text(surf,"ROUTE PREVIEW",col2x,ry,gf(15,False),GOLD); ry+=28
+        pygame.draw.line(surf,BORDER2,(col2x,ry),(mx+mw-20,ry),1); ry+=10
+        if self._preview:
+            P=self._preview
+            for lbl,val,vc in [
+                ("Gross/turn",       fmt_cr(P["gross"]),                     BRIGHT),
+            ]:
+                blit_text(surf,f"{lbl:<22}: ",col2x,ry,f,DIM); blit_text(surf,val,col2x+tw(f"{lbl:<22}: ",f),ry,f,vc); ry+=22
+            for t in P.get("transit_taxes",[]):
+                blit_text(surf,f"  Transit {t['nation'][:14]:<14}: -{fmt_cr(t['amount'])}",col2x,ry,f,RED_C); ry+=22
+            for lbl,val,vc in [
+                ("NET/turn",         fmt_cr(P["net_income"]),                 GREEN),
+                ("",None,TEXT),
+                ("Pirate dist.",     P["pirate_distance"],                    DIM),
+                ("Escort",          f"{P['escort_pct']:.0f}%",              DIM),
+                ("Pirate risk",     f"{P['pirate_risk_pct']:.1f}% / turn",   RED_C if P["pirate_risk_pct"]>15 else GOLD),
+                ("Exp. loss/turn",   fmt_cr(P["expected_pirate_loss"]),      RED_C),
+                ("Unit price",      f"{P['effective_price']:.4f} cr",       DIM),
+                ("Qty/turn",         fmt_int(P["quantity_per_turn"]),        DIM),
+            ]:
+                if val is None: ry+=8; continue
+                blit_text(surf,f"{lbl:<22}: ",col2x,ry,f,DIM); blit_text(surf,val,col2x+tw(f"{lbl:<22}: ",f),ry,f,vc); ry+=22
+            ry+=6; blit_text(surf,"Pirate Risk",col2x,ry,fs,DIM); ry+=14
+            prc=P["pirate_risk_pct"]/100; fc=RED_C if prc>0.2 else(GOLD if prc>0.1 else GREEN)
+            draw_bar(surf,col2x,ry,min(200,mw-col1w-60),10,prc,fg=fc); ry+=18
+        elif self._err:
+            blit_text(surf,f"Error: {self._err}",col2x,ry,fs,RED_C)
+        else:
+            blit_text(surf,"Set exporter + importer to preview.",col2x,ry,fs,DIM)
 
-        # ── DRAW ─────────────────────────────────────
-        draw_bg(screen)
-        draw_top_bar(screen,
-                     cur_nation["name"] if cur_nation else "—",
-                     turn, year, quarter, sm._dirty)
-        main_p.draw(screen)
-        left.draw(screen, turn, year, quarter)
-        edit_ov.draw(screen, dt)
-        draw_status_bar(screen)
+        # Action buttons
+        bw=130; bby=my+mh-44; bx_=mx+mw-bw*3-30
+        self._btn_confirm=Button((bx_,bby,bw,30),"[ CONFIRM ROUTE ]",accent=True)
+        self._btn_export =Button((bx_+bw+10,bby,bw,30),"[ DISCORD EXPORT ]")
+        self._btn_cancel =Button((bx_+bw*2+20,bby,bw,30),"[ CANCEL ]")
+        for b in (self._btn_confirm,self._btn_export,self._btn_cancel): b.draw(surf)
+        if self._err: blit_text(surf,self._err,mx+20,bby+8,fs,RED_C)
+
+    def on_event(self, event, lay: Layout, sm) -> Optional[str]:
+        if not self.active: return None
+        if event.type==pygame.KEYDOWN:
+            if event.key==pygame.K_ESCAPE: self.close(); return None
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            for rn,r in self._res_rects:
+                if r.collidepoint(event.pos): self._resource=rn; self._recalc()
+            for i,r in self._dist_rects:
+                if r.collidepoint(event.pos): self._dist_idx=i; self._recalc()
+            if self._btn_cancel and self._btn_cancel.on_event(event):
+                self.close(); return None
+            if self._btn_export and self._btn_export.on_event(event) and self._preview:
+                rid=TradeRouteEngine.next_route_id(self.state) if hasattr(TradeRouteEngine,"next_route_id") else "TR????"
+                return discord_trade_route(self._preview, rid)
+            if self._btn_confirm and self._btn_confirm.on_event(event) and self._preview:
+                eng=TradeRouteEngine(self.state); dist=self.DIST_OPTS[self._dist_idx]
+                route=eng.build(self._preview,dist,"")
+                self.state.setdefault("trade_routes",[]).append(route)
+                sm.mark_dirty(); sm.autosave()
+                set_status(f"Route {route['id']} created: {route['name']}",GREEN); self.close(); return "confirmed"
+            if self._pct_slider and self._pct_slider.collidepoint(event.pos): self._drag_pct=True
+            if self._esc_slider and self._esc_slider.collidepoint(event.pos): self._drag_esc=True
+        if event.type==pygame.MOUSEBUTTONUP: self._drag_pct=False; self._drag_esc=False
+        if event.type==pygame.MOUSEMOTION:
+            if self._drag_pct and self._pct_slider:
+                rel=(event.pos[0]-self._pct_slider.x)/max(1,self._pct_slider.w)
+                self._export_pct=max(0.01,min(1.0,rel)); self._recalc()
+            if self._drag_esc and self._esc_slider:
+                rel=(event.pos[0]-self._esc_slider.x)/max(1,self._esc_slider.w)
+                self._escort=max(0.0,min(100.0,rel*100)); self._recalc()
+        for b in (self._btn_confirm,self._btn_export,self._btn_cancel):
+            if b: b.on_event(event)
+        return None
+
+    def set_exporter(self, name): self._exporter=name; self._recalc()
+    def set_importer(self, name): self._importer=name; self._recalc()
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ADVANCE TURN MODAL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class TurnModal:
+    """Shows d20 roll results after advancing the turn."""
+    def __init__(self):
+        self.active=False; self.events=[]; self.turn=0
+        self._scrl=Scrollbar(0,0,10,100); self._btn_close=None
+
+    def open(self, events, turn):
+        self.active=True; self.events=events; self.turn=turn
+        self._scrl.set_content(max(300,len(events)*54+100),520); self._scrl.scroll=0
+
+    def close(self): self.active=False
+
+    def draw(self, surf, lay: Layout):
+        if not self.active: return
+        ov=pygame.Surface((lay.sw,lay.sh),pygame.SRCALPHA); ov.fill((0,0,0,190)); surf.blit(ov,(0,0))
+        mw=min(lay.sw-100,780); mh=min(lay.sh-80,560)
+        mx=(lay.sw-mw)//2; my=(lay.sh-mh)//2; r=pygame.Rect(mx,my,mw,mh)
+        pygame.draw.rect(surf,MODALBG,r); pygame.draw.rect(surf,ACCENT,r,2)
+        corner_deco(surf,mx,my,mw,mh,GOLD,12)
+        fh=gf(15,False); f=gf(12); fs=gf(11); f10=gf(10)
+        SEV_COL={"Critical":RED_C,"Major":GOLD,"Minor":CYAN,"Info":DIM}
+        blit_text(surf,f"TURN {self.turn} COMPLETE — d20 PLANETARY EVENTS",mx+16,my+12,fh,GOLD)
+        blit_text(surf,f"{len(self.events)} event(s) generated",mx+16,my+34,fs,DIM)
+        pygame.draw.line(surf,BORDER2,(mx+4,my+50),(mx+mw-4,my+50),1)
+        lh=mh-110; lr=pygame.Rect(mx+2,my+54,mw-14,lh)
+        self._scrl.update_rect(mx+mw-12,my+54,10,lh); self._scrl.view_h=lh
+        surf.set_clip(lr)
+        for i,ev in enumerate(self.events):
+            iy=my+56+i*54-self._scrl.scroll
+            if iy+54<lr.y or iy>lr.bottom: continue
+            sev=ev.get("severity","Info"); scol=SEV_COL.get(sev,DIM)
+            bg=PANEL if i%2==0 else PANEL2
+            pygame.draw.rect(surf,bg,(mx+4,iy,mw-18,52))
+            pygame.draw.rect(surf,scol,(mx+4,iy,3,52))
+            roll=ev.get("d20_roll",0); rc=RED_C if roll<=3 else(GOLD if roll<=7 else(GREEN if roll>=17 else DIM))
+            blit_text(surf,f"d20={roll}",mx+14,iy+6,f,rc)
+            blit_text(surf,f"{SEVERITY_EMOJI.get(sev,'📊')} {ev.get('title','?')}",mx+70,iy+6,f,BRIGHT)
+            scope=ev.get("nation","?")
+            if ev.get("planet"): scope+=f" | {ev['planet']}"
+            blit_text(surf,scope,mx+14,iy+24,fs,TEAL)
+            body=ev.get("body",""); bp=body[:120]+("…" if len(body)>120 else "")
+            blit_text(surf,bp,mx+14,iy+40,f10,DIM2)
+        surf.set_clip(None); self._scrl.draw(surf)
+        bx=(lay.sw-140)//2; by=my+mh-40
+        self._btn_close=Button((bx,by,140,30),"[ CLOSE ]",accent=True)
+        self._btn_close.draw(surf)
+
+    def on_event(self, event) -> bool:
+        """Returns True when modal should close."""
+        self._scrl.on_event(event, True)
+        if self._btn_close and self._btn_close.on_event(event): return True
+        if event.type==pygame.KEYDOWN and event.key in (pygame.K_ESCAPE,pygame.K_RETURN,pygame.K_SPACE):
+            return True
+        if self._btn_close: self._btn_close.on_event(event)
+        return False
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CLIPBOARD HELPER
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def copy_to_clipboard(text: str) -> bool:
+    """Copy text to system clipboard. Returns True on success."""
+    try:
+        import subprocess, platform
+        p=platform.system()
+        if p=="Linux":
+            for cmd in (["xclip","-selection","clipboard"],["xsel","--clipboard","--input"]):
+                try:
+                    proc=subprocess.Popen(cmd,stdin=subprocess.PIPE)
+                    proc.communicate(text.encode()); return True
+                except FileNotFoundError: continue
+        elif p=="Darwin":
+            subprocess.Popen(["pbcopy"],stdin=subprocess.PIPE).communicate(text.encode()); return True
+        elif p=="Windows":
+            subprocess.Popen(["clip"],stdin=subprocess.PIPE,shell=True).communicate(text.encode()); return True
+    except Exception: pass
+    return False
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MAIN APPLICATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class App:
+    """
+    Carmine NRP GM Tool — main application loop.
+
+    State machine
+    -------------
+      tab 0  PROFILE   – ProfilePanel + EditOverlay
+      tab 1  SYSTEM MAP – SystemMapPanel
+      tab 2  EVENT LOG  – EventLogPanel + EditOverlay
+      tab 3  MARKET     – MarketPanel + EditOverlay
+      modal  TRADE      – TradeModal (R key)
+      modal  TURN       – TurnModal (T key)
+    """
+    def __init__(self, state_file: Optional[str] = None):
+        pygame.init(); pygame.display.set_caption(f"Carmine NRP GM Tool {VERSION}")
+        self.screen = pygame.display.set_mode((1280,720), pygame.RESIZABLE)
+        self.clock  = pygame.time.Clock()
+        self.lay    = Layout(1280, 720)
+
+        # Engine
+        self.sm     = StateManager(state_file or "carmine_state.json")
+        loaded      = self.sm.load() if state_file else False
+        if not loaded and state_file:
+            set_status(f"Could not load {state_file}", RED_C)
+
+        # Widgets
+        self.tab_bar     = TabBar(self.lay, TAB_NAMES)
+        self.left        = LeftPanel(self.lay)
+        self.profile     = ProfilePanel(self.lay)
+        self.sysmap      = SystemMapPanel(self.lay)
+        self.evlog       = EventLogPanel(self.lay)
+        self.market      = MarketPanel(self.lay)
+        self.edit        = EditOverlay()
+        self.trade_modal = TradeModal()
+        self.turn_modal  = TurnModal()
+
+        self._refresh_nation_list()
+        self._load_nation(0)
+
+    # ── Data helpers ──────────────────────────────
+
+    def _refresh_nation_list(self):
+        names = self.sm.nation_names()
+        self.left.set_nations(names, self.left.selected)
+
+    def _load_nation(self, idx: int):
+        names = self.sm.nation_names()
+        if not names: return
+        idx = max(0, min(idx, len(names)-1))
+        self.left.selected = idx
+        nation = self.sm.state.get("nations",[])[idx]
+        self.profile.set_items(build_profile_items(nation, self.sm.state))
+        self.sysmap.set_nation(nation)
+        self.evlog.set_state(self.sm.state, nation["name"])
+        self.market.set_state(self.sm.state)
+
+    def _current_nation(self) -> Optional[dict]:
+        nations = self.sm.state.get("nations",[])
+        if not nations: return None
+        idx = self.left.selected
+        return nations[min(idx, len(nations)-1)]
+
+    def _do_discord_export(self):
+        """Export currently-active panel to clipboard."""
+        tab = self.tab_bar.active; nation = self._current_nation()
+        if tab == 0 and nation:
+            text = discord_profile(nation, self.sm.state)
+        elif tab == 1 and nation:
+            text = self.sysmap._export_discord(nation)
+        elif tab == 2:
+            text = self.evlog.export_news()
+        elif tab == 3:
+            text = discord_market_report(self.sm.state)
+        else: return
+        ok = copy_to_clipboard(text)
+        set_status("Discord export copied to clipboard!" if ok else "Clipboard unavailable — see terminal.", GREEN if ok else GOLD)
+        print("\n" + "="*60 + "\n" + text + "\n" + "="*60)
+
+    def _do_advance_turn(self):
+        if not self.sm.state.get("nations"): set_status("No nations loaded.",RED_C); return
+        set_status("Advancing turn…", GOLD)
         pygame.display.flip()
-        clock.tick(FPS)
+        events = advance_turn(self.sm)
+        turn   = self.sm.state.get("turn",1)
+        self.turn_modal.open(events, turn)
+        self._refresh_nation_list()
+        self._load_nation(self.left.selected)
+        set_status(f"Turn {turn} advanced. {len(events)} events generated.", GREEN)
 
-    pygame.quit()
+    # ── Edit commit ───────────────────────────────
 
+    def _commit_edit(self):
+        raw = self.edit.text; meta = self.edit.meta
+        if meta is None: self.edit.close(); return
+        path = meta.get("path",[])
+        # Event body edit
+        if path and path[0]=="_event":
+            self.evlog.apply_body_edit(path[1], raw)
+            self.edit.close(); set_status("Event body updated.",GREEN); return
+        # Market modifier edit
+        if path and path[0]=="_market":
+            try:
+                val = float(raw.strip())
+                self.market.apply_market_edit(path[1], val, self.sm)
+            except ValueError: set_status("Invalid number.",RED_C)
+            self.edit.close(); return
+        # Nation field edit
+        nation = self._current_nation()
+        if nation and apply_edit(nation, meta, raw):
+            recalc_loyalty_happiness(nation)
+            self.sm.mark_dirty(); self.sm.autosave()
+            self.profile.set_items(build_profile_items(nation, self.sm.state))
+            set_status(f"Updated: {path}", GREEN)
+        else:
+            set_status("Invalid value — edit discarded.", RED_C)
+        self.edit.close()
+
+    # ── Main loop ─────────────────────────────────
+
+    def run(self):
+        running = True; dt = 0.0
+        while running:
+            dt = self.clock.tick(FPS) / 1000.0
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: running = False; break
+                if event.type == pygame.VIDEORESIZE:
+                    sw, sh = event.w, event.h
+                    self.screen = pygame.display.set_mode((sw,sh), pygame.RESIZABLE)
+                    self.lay.update(sw,sh)
+                    for obj in (self.tab_bar,self.left,self.profile,self.sysmap,
+                                self.evlog,self.market):
+                        obj.update_layout(self.lay)
+
+                # Turn modal absorbs all events when open
+                if self.turn_modal.active:
+                    if self.turn_modal.on_event(event): self.turn_modal.close()
+                    continue
+
+                # Trade modal
+                if self.trade_modal.active:
+                    result = self.trade_modal.on_event(event, self.lay, self.sm)
+                    if result and result != "confirmed":
+                        ok = copy_to_clipboard(result)
+                        set_status("Trade route export copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+                    if result == "confirmed": self._load_nation(self.left.selected)
+                    continue
+
+                # Edit overlay
+                if self.edit.active:
+                    res = self.edit.on_event(event)
+                    if res == "confirm": self._commit_edit()
+                    elif res == "cancel": self.edit.close(); set_status("Edit cancelled.",DIM)
+                    continue
+
+                # Global keyboard shortcuts
+                if event.type == pygame.KEYDOWN:
+                    k = event.key
+                    if k == pygame.K_s: self.sm.autosave(); set_status("Saved.",GREEN)
+                    elif k == pygame.K_d: self._do_discord_export()
+                    elif k == pygame.K_t: self._do_advance_turn()
+                    elif k == pygame.K_r:
+                        n = self._current_nation()
+                        self.trade_modal.open(self.sm.state, n["name"] if n else "")
+                    elif k == pygame.K_UP:
+                        self._load_nation(self.left.selected - 1)
+                    elif k == pygame.K_DOWN:
+                        self._load_nation(self.left.selected + 1)
+                    elif k == pygame.K_ESCAPE: running = False; break
+                    elif k in (pygame.K_PAGEUP, pygame.K_PAGEDOWN):
+                        delta = -self.profile.lay.mh if k==pygame.K_PAGEUP else self.profile.lay.mh
+                        self.profile.scrl.scroll = max(0, self.profile.scrl.scroll + delta)
+                        self.profile.scrl.clamp()
+
+                # Tab bar
+                new_tab = self.tab_bar.on_event(event)
+                if new_tab is not None: self._load_nation(self.left.selected)
+
+                # Left panel
+                nation_idx, action = self.left.on_event(event)
+                if nation_idx is not None: self._load_nation(nation_idx)
+                if action == "save":  self.sm.autosave(); set_status("Saved.",GREEN)
+                if action == "disc":  self._do_discord_export()
+                if action == "adv":   self._do_advance_turn()
+                if action == "trade":
+                    n = self._current_nation()
+                    self.trade_modal.open(self.sm.state, n["name"] if n else "")
+
+                # Panel events
+                tab = self.tab_bar.active
+                if tab == 0:
+                    hit = self.profile.on_event(event)
+                    if hit: self.edit.open(hit["label"], hit["raw"], hit["meta"])
+                elif tab == 1:
+                    result = self.sysmap.on_event(event, self.sm.state)
+                    if result:
+                        ok = copy_to_clipboard(result)
+                        set_status("System export copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+                elif tab == 2:
+                    self.evlog.on_event(event, self.edit)
+                elif tab == 3:
+                    result = self.market.on_event(event, self.edit, self.sm)
+                    if result:
+                        ok = copy_to_clipboard(result)
+                        set_status("Market report copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+
+            # ── DRAW ─────────────────────────────────────
+            self.screen.fill(BG)
+            tab = self.tab_bar.active
+            n   = self._current_nation()
+            nname = n["name"] if n else "—"
+            state = self.sm.state
+            draw_top_bar(self.screen, self.lay, nname,
+                         state.get("turn",1), state.get("year",2200),
+                         state.get("quarter",1), self.sm._dirty)
+            self.tab_bar.draw(self.screen)
+            self.left.draw(self.screen, state.get("turn",1),
+                           state.get("year",2200), state.get("quarter",1))
+            if tab == 0: self.profile.draw(self.screen)
+            elif tab == 1: self.sysmap.draw(self.screen)
+            elif tab == 2: self.evlog.draw(self.screen)
+            elif tab == 3: self.market.draw(self.screen)
+            draw_status_bar(self.screen, self.lay)
+            self.edit.draw(self.screen, self.lay, dt)
+            self.turn_modal.draw(self.screen, self.lay)
+            self.trade_modal.draw(self.screen, self.lay)
+            pygame.display.flip()
+
+        pygame.quit()
+        sys.exit(0)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# LEFT PANEL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class LeftPanel:
+    """Nation list sidebar with action buttons."""
+    ROW_H = 40; PAD = 8
+
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.names = []; self.scroll = 0
+        self.selected = 0; self._hov = -1
+
+    def update_layout(self, lay: Layout): self.lay = lay
+    def set_nations(self, names, sel=0): self.names = names; self.selected = sel
+
+    def _buttons(self):
+        lw = self.lay.lw; sh = self.lay.sh; p = self.PAD; bw = lw - p*2
+        return {
+            "save":  Button((p, sh-130, bw, 26), "[ SAVE  S ]",  accent=True),
+            "disc":  Button((p, sh-100, bw, 26), "[ DISCORD  D ]"),
+            "trade": Button((p, sh- 70, bw, 26), "[ TRADE ROUTE  R ]"),
+            "adv":   Button((p, sh- 40, bw, 26), "[ ADVANCE TURN  T ]", accent=True),
+        }
+
+    def draw(self, surf, turn, year, quarter):
+        lw = self.lay.lw; sh = self.lay.sh
+        pygame.draw.rect(surf, PANEL, (0, 0, lw, sh))
+        pygame.draw.rect(surf, BORDER, (0, 0, lw, sh), 1)
+        corner_deco(surf, 0, 0, lw, sh, ACCENT, 10)
+        pygame.draw.rect(surf, ACCENT2, (0, 0, lw, 3))
+        bt = blit_text
+        bt(surf, "CARMINE NRP", self.PAD, 8, gf(14, mono=False), ACCENT)
+        bt(surf, f"T{turn}  ·  {year} Q{quarter}", self.PAD, 28, gf(11), TEAL)
+        yd = 48; pygame.draw.line(surf, BORDER2, (4, yd), (lw-4, yd), 1)
+        ly0 = yd+4; lh = sh - yd - 145
+        surf.set_clip(pygame.Rect(0, ly0, lw, lh))
+        fi = gf(12); ft = gf(10)
+        for i, name in enumerate(self.names):
+            iy = ly0 + i*self.ROW_H - self.scroll
+            if iy + self.ROW_H < ly0 or iy > ly0+lh: continue
+            rr = pygame.Rect(4, iy, lw-8, self.ROW_H-3)
+            if i == self.selected:
+                pygame.draw.rect(surf, SEL, rr, border_radius=3)
+                pygame.draw.rect(surf, CYAN, rr, 1, border_radius=3)
+                pygame.draw.rect(surf, CYAN, (0, iy, 3, self.ROW_H-3)); nc = BRIGHT
+            elif i == self._hov:
+                pygame.draw.rect(surf, HOV, rr, border_radius=3); nc = TEXT
+            else: nc = DIM
+            tag_str = f"[{nation_tag(name)}]"
+            bt(surf, tag_str, self.PAD+2, iy+4, ft, TEAL if i==self.selected else DIM2)
+            ns = name if len(name) <= 20 else name[:18]+".."
+            bt(surf, ns, self.PAD+2, iy+18, fi, nc)
+        surf.set_clip(None)
+        for b in self._buttons().values(): b.draw(surf)
+
+    def on_event(self, event):
+        lw = self.lay.lw
+        if event.type == pygame.MOUSEMOTION:
+            pos = event.pos
+            if pos[0] < lw:
+                rel = pos[1] - 52 + self.scroll; i = rel // self.ROW_H
+                self._hov = i if 0 <= i < len(self.names) else -1
+            else: self._hov = -1
+        if event.type == pygame.MOUSEWHEEL and pygame.mouse.get_pos()[0] < lw:
+            self.scroll = max(0, self.scroll - event.y * self.ROW_H)
+        for key, btn in self._buttons().items():
+            if btn.on_event(event): return None, key
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            pos = event.pos
+            if pos[0] < lw:
+                rel = pos[1] - 52 + self.scroll; i = rel // self.ROW_H
+                if 0 <= i < len(self.names): self.selected = i; return i, None
+        return None, None
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROFILE  –  build render-item list
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def build_profile_items(nation: dict, state: dict) -> list:
+    """Build flat render-item list for ProfilePanel."""
+    items = []; y = 8
+    routes = state.get("trade_routes", [])
+    ipeu   = nation.get("base_ipeu", 0.0)
+    pop    = current_population(nation)
+    exp_d  = nation.get("expenditure", {})
+    trade  = compute_trade(nation, routes)
+    rflows = compute_resource_flows(nation)
+    debt   = compute_debt(nation)
+    rbudget= nation.get("research_budget", 0.0)
+    sfund  = nation.get("strategic_fund",  0.0)
+    total_exp_pct = sum(exp_d.values())
+    total_exp_cr  = total_exp_pct*ipeu + rbudget
+    net_bal        = ipeu + trade["net"] - total_exp_cr - debt["q_interest"]
+    fund_delta     = trade["net"] - debt["q_interest"]
+    per_cap        = int(ipeu/pop) if pop > 0 else 0
+    star_sys  = nation.get("star_systems", [])
+    species   = nation.get("species_populations", [])
+    projs     = nation.get("projects", [])
+    act_res   = nation.get("active_research_projects", [])
+    comp_tech = nation.get("completed_techs", [])
+    eco_m     = nation.get("economic_model", "Mixed")
+    afd       = nation.get("active_forces_detail", [])
+    if not isinstance(afd, list): afd = []
+    homeworld = "—"
+    for ss in star_sys:
+        for pl in ss.get("planets", []): homeworld = pl["name"]; break
+        break
+    sstr = (", ".join(f"{s['name']} ({s.get('status','?').title()})" for s in species)
+            if species else "—")
+
+    def add(item): nonlocal y; item["y"] = y; items.append(item); y += item["h"]
+    def hdr1(t): add({"type":"hdr1","h":36,"text":t})
+    def hdr2(t): add({"type":"hdr2","h":30,"text":t})
+    def spc(h=8): add({"type":"spc","h":h})
+    def sep():    add({"type":"sep","h":10})
+    def crow(lbl, val, key=None, et=None, lw=18, vc=TEXT, ib=True):
+        meta = {"path":[key],"type":et,"raw":nation.get(key,val)} if key else None
+        add({"type":"row","h":22,"in_block":ib,"label":lbl,"value":str(val),
+             "label_w":lw,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+
+    add({"type":"nhdr","h":62,"tag":nation_tag(nation["name"]),"name":nation["name"]})
+    spc()
+    for lbl,val,key,et in [
+        ("Species",    sstr,                                          None, None),
+        ("Population", fmt_pop(pop),                                  "population","pop"),
+        ("Pop Growth", fmt_pct(nation.get("pop_growth",0))+" / yr",   "pop_growth","pct"),
+        ("Homeworld",  homeworld,                                      None, None),
+        ("Civilisation",nation.get("civ_level","Interplanetary Industrial"),"civ_level","str"),
+        ("Tier",       str(nation.get("civ_tier",2)),                  "civ_tier","int"),
+        ("Eco Model",  eco_m,                                          "economic_model","str"),
+        ("Status",     nation.get("eco_status","Stable"),              "eco_status","str"),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,val)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":str(val),
+             "label_w":16,"editable":meta is not None,"edit_meta":meta,
+             "val_color":CYAN if key else TEXT})
+    spc()
+
+    hdr1("# ECONOMY")
+    for lbl,val,key,et,vc in [
+        ("IPEU (base)",       fmt_cr(ipeu),                              "base_ipeu","float",CYAN),
+        ("IPEU Growth",       fmt_pct(nation.get("ipeu_growth",0))+" / yr","ipeu_growth","pct",TEXT),
+        ("IPEU per Capita",   f"{per_cap:,} cr",                         None,None,TEXT),
+        ("Trade Revenue",     fmt_cr(trade["net"]),                      None,None,TEXT),
+        (" - Exports",        fmt_cr(trade["exports"]),                  None,None,GREEN),
+        (" - Imports",        fmt_cr(-trade["imports"]),                 None,None,RED_C),
+        ("Total Expenditure", fmt_cr(total_exp_cr)+f"  ({total_exp_pct*100:.1f}%)",None,None,TEXT),
+        ("Research Budget",   fmt_cr(rbudget)+" / turn",                 "research_budget","float",CYAN),
+        ("Net Balance",       fmt_cr(net_bal),                           None,None,GREEN if net_bal>=0 else RED_C),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,0)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+             "label_w":18,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+    spc()
+
+    hdr2("## EXPENDITURE & BREAKDOWN")
+    max_pct = max(exp_d.values(), default=0.01)
+    for cat in EXPENDITURE_ORDER:
+        pct = exp_d.get(cat, 0.0)
+        if pct == 0.0 and cat not in exp_d: continue
+        add({"type":"bar","h":22,"in_block":True,"label":cat,"pct":pct,
+             "amount":fmt_cr(pct*ipeu),"editable":True,
+             "edit_meta":{"path":["expenditure",cat],"type":"pct","raw":pct}})
+    sep()
+    add({"type":"row","h":22,"in_block":True,"label":"TOTAL",
+         "value":f"{total_exp_pct*100:.1f}%   ({fmt_cr(total_exp_cr)})",
+         "label_w":18,"editable":False,"edit_meta":None,"val_color":GOLD})
+    spc()
+
+    if eco_m in ("Capitalist","Mixed"):
+        hdr2("## MARKET DATA")
+        for lbl,val,key,et in [
+            ("Investments",     fmt_cr(nation.get("investments",0)),    "investments","float"),
+            ("Subsidies",       fmt_cr(nation.get("subsidies",0)),      "subsidies","float"),
+            ("Local Mkt Output",fmt_cr(nation.get("local_market_output",0)),"local_market_output","float"),
+        ]:
+            meta = {"path":[key],"type":et,"raw":nation.get(key,0)}
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":20,"editable":True,"edit_meta":meta,"val_color":TEXT})
+        spc()
+    if eco_m in ("Planned","Mixed"):
+        hdr2("## PLANNED DATA")
+        for lbl,val,key,et in [
+            ("Domestic Prod.", fmt_cr(nation.get("domestic_production",0)),"domestic_production","float"),
+            ("Export Surplus", fmt_cr(nation.get("export_surplus",0)),    "export_surplus","float"),
+            ("Construction Eff.",f"{nation.get('construction_efficiency',0.8)*100:.0f}%","construction_efficiency","pct"),
+            ("Research Eff.",  f"{nation.get('research_efficiency',0.8)*100:.0f}%","research_efficiency","pct"),
+            ("Bureaucracy Eff.",f"{nation.get('bureaucracy_efficiency',0.8)*100:.0f}%","bureaucracy_efficiency","pct"),
+            ("Distribution",   fmt_cr(nation.get("distribution",0)),      "distribution","float"),
+        ]:
+            meta = {"path":[key],"type":et,"raw":nation.get(key,0)}
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":20,"editable":True,"edit_meta":meta,"val_color":TEXT})
+        spc()
+
+    hdr2("## ECONOMIC PROJECTS")
+    ap = [p for p in projs if p.get("status") in ("active","in_progress","complete")]
+    if ap:
+        for p in ap:
+            done = p.get("status")=="complete"
+            tl = p.get("duration_turns",0)-p.get("turns_elapsed",0)
+            add({"type":"row","h":22,"in_block":True,
+                 "label":f"{p['name']} ({p.get('category','?')})",
+                 "value":"[COMPLETE]" if done else f"[{tl}t left]",
+                 "label_w":36,"editable":False,"edit_meta":None,
+                 "val_color":GREEN if done else GOLD})
+    else:
+        add({"type":"row","h":22,"in_block":True,"label":"None active","value":"",
+             "label_w":36,"editable":False,"edit_meta":None,"val_color":DIM})
+    spc()
+
+    hdr2("## FISCAL REPORT")
+    for lbl,val,key,et,vc in [
+        ("Debt Balance", fmt_cr(debt["balance"])+f"  ({debt['load_pct']:.1f}% of IPEU)",
+                         "debt_balance","float",RED_C if debt["balance"]>0 else TEXT),
+        ("Interest Rate",f"{debt['rate']*100:.1f}% / yr","interest_rate","pct",TEXT),
+        ("Quarterly Int.",fmt_cr(debt["q_interest"]),None,None,TEXT),
+        ("Debt Repayment",fmt_cr(debt["repayment"])+" / qtr","debt_repayment","float",TEXT),
+    ]:
+        meta = {"path":[key],"type":et,"raw":nation.get(key,0)} if key else None
+        add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+             "label_w":18,"editable":meta is not None,"edit_meta":meta,"val_color":vc})
+    add({"type":"debtbar","h":22,"in_block":True,"pct":debt["load_pct"]/100})
+    sep()
+    sf_col = GREEN if sfund >= 0 else RED_C
+    fd_col = GREEN if fund_delta >= 0 else RED_C
+    add({"type":"row","h":22,"in_block":True,"label":"Strategic Fund",
+         "value":fmt_cr(sfund),"label_w":18,"editable":True,"val_color":sf_col,
+         "edit_meta":{"path":["strategic_fund"],"type":"float","raw":sfund}})
+    fds = ("+"+fmt_cr(fund_delta) if fund_delta>=0 else fmt_cr(fund_delta))
+    add({"type":"row","h":22,"in_block":True,"label":"Fund Δ this turn",
+         "value":fds,"label_w":18,"editable":False,"edit_meta":None,"val_color":fd_col})
+    spc()
+
+    hdr2("## RESOURCES & STOCKPILES")
+    for rname in RESOURCE_NAMES:
+        rd   = rflows.get(rname,{}); stk=rd.get("stockpile",0.0)
+        prod = rd.get("production",0.0); cons=rd.get("consumption",0.0)
+        net  = rd.get("net",0.0); trend=rd.get("trend","Stable")
+        ncol = GREEN if net>=0 else RED_C
+        tcol = GREEN if "Surplus" in trend else (RED_C if "Deficit" in trend else GOLD)
+        ns   = ("+"+fmt_int(net)) if net>=0 else fmt_int(int(net))
+        sd   = nation.get("resource_stockpiles",{}).get(rname,{})
+        mode = sd.get("production_mode","derived")
+        exp_c= next((r2.get("credits",0) for r2 in trade["export_routes"] if r2.get("resource")==rname), 0)
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Stockpile","value":fmt_int(stk),
+             "label_w":28,"editable":True,"val_color":TEXT,
+             "edit_meta":{"path":["resource_stockpiles",rname,"stockpile"],"type":"float","raw":stk}})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Prod/turn","value":fmt_int(prod),
+             "label_w":28,"editable":mode=="flat","val_color":TEXT,
+             "edit_meta":{"path":["resource_stockpiles",rname,"flat_production"],"type":"float","raw":prod}
+                         if mode=="flat" else None})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Cons/turn","value":fmt_int(cons),
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":TEXT})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Net/turn","value":ns,
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":ncol})
+        add({"type":"row","h":22,"in_block":True,"label":f"{rname} Trend","value":trend,
+             "label_w":28,"editable":False,"edit_meta":None,"val_color":tcol})
+        if exp_c > 0:
+            add({"type":"row","h":22,"in_block":True,"label":f"{rname} Export","value":fmt_cr(exp_c),
+                 "label_w":28,"editable":False,"edit_meta":None,"val_color":CYAN})
+        spc(4)
+    spc()
+
+    hdr1("# TERRITORIES")
+    for ss in star_sys:
+        add({"type":"row","h":22,"in_block":False,
+             "label":f"System: {ss['name']}  [{ss.get('coordinates','—')}]",
+             "value":ss.get("notes",""),"label_w":36,"editable":False,"edit_meta":None,"val_color":CYAN})
+        for pl in ss.get("planets",[]):
+            add({"type":"row","h":22,"in_block":True,
+                 "label":f"  ▸ {pl['name']}",
+                 "value":(f"{pl.get('type','?')} · {pl.get('size','?')} · "
+                          f"Hab:{pl.get('habitability',0):.0f}% · "
+                          f"Dev:{pl.get('devastation',0):.0f}% · "
+                          f"Crime:{pl.get('crime_rate',0):.0f}% · "
+                          f"Unrest:{pl.get('unrest',0):.0f}%"),
+                 "label_w":22,"editable":False,"edit_meta":None,"val_color":TEXT})
+            for s in pl.get("settlements",[]):
+                sp_inf = " | ".join(f"{sp['species'][:8]} loy:{sp.get('loyalty',0):.0f}"
+                                    for sp in s.get("populations",[]))
+                add({"type":"row","h":22,"in_block":True,
+                     "label":f"      › {s['name']}",
+                     "value":f"pop:{fmt_pop(s.get('population',0))} {sp_inf}",
+                     "label_w":26,"editable":False,"edit_meta":None,"val_color":DIM})
+    spc()
+
+    hdr2("## NATIONAL DEMOGRAPHICS")
+    add({"type":"row","h":22,"in_block":True,"label":"Total Population","value":fmt_pop(pop),
+         "label_w":22,"editable":False,"edit_meta":None,"val_color":TEXT})
+    add({"type":"row","h":22,"in_block":True,"label":"Loyalty Modifier",
+         "value":f"{nation.get('loyalty_modifier_cg',1.0)*100:.0f}%",
+         "label_w":22,"editable":True,
+         "edit_meta":{"path":["loyalty_modifier_cg"],"type":"float","raw":nation.get("loyalty_modifier_cg",1.0)},
+         "val_color":TEXT})
+    spc(6)
+    for sp in species:
+        is_dom = sp.get("status","") in ("dominant","majority")
+        add({"type":"sphdr","h":28,"name":sp["name"],"status":sp.get("status","?").title(),"dominant":is_dom})
+        sp_pop = sp.get("population",0); shr = sp_pop/pop*100 if pop>0 else 0
+        loy = sp.get("loyalty",75); lc = GREEN if loy>=70 else (GOLD if loy>=40 else RED_C)
+        hap = 70
+        for ss2 in star_sys:
+            for pl2 in ss2.get("planets",[]):
+                for s2 in pl2.get("settlements",[]):
+                    for sp2 in s2.get("populations",[]):
+                        if sp2["species"]==sp["name"]: hap=sp2.get("happiness",70)
+        for lbl,val,meta_key,et,vc in [
+            ("Population",  fmt_pop(sp_pop),  None,None,TEXT),
+            ("Share",       f"{shr:.1f}% of total",None,None,TEXT),
+            ("Growth Rate", fmt_pct(sp.get("growth_rate",0))+" / yr",None,None,TEXT),
+            ("Culture",     sp.get("culture","—"),None,None,TEXT),
+            ("Language",    sp.get("language","—"),None,None,TEXT),
+            ("Religion",    sp.get("religion","—"),None,None,TEXT),
+            ("Loyalty",     f"{loy}/100  {loyalty_bar(loy)}","loyalty","int",lc),
+            ("Happiness",   f"{hap}/100  {loyalty_bar(hap)}",None,None,GOLD),
+        ]:
+            m = {"path":["_species",sp["name"],meta_key],"type":et,"raw":sp.get(meta_key,loy)} if meta_key else None
+            add({"type":"row","h":22,"in_block":True,"label":lbl,"value":val,
+                 "label_w":16,"editable":m is not None,"edit_meta":m,"val_color":vc})
+        spc(6)
+
+    hdr1("# MILITARY")
+    for sec, cats in [("## SPACEFLEET",["Spacefleet","Navy"]),
+                      ("## AEROSPACE",["Air Force","Aerospace"]),
+                      ("## GROUND FORCES",["Ground Forces","Ground","Army"])]:
+        hdr2(sec)
+        units = [u for u in afd if u.get("category") in cats]
+        if units:
+            for u in units:
+                cname = u.get("custom_name") or u.get("unit","?")
+                add({"type":"row","h":22,"in_block":True,
+                     "label":f"  {cname}","value":f"×{u.get('count',1)}  {u.get('veterancy','?')}",
+                     "label_w":30,"editable":False,"edit_meta":None,"val_color":DIM})
+        else:
+            add({"type":"row","h":22,"in_block":True,"label":"  None on record","value":"",
+                 "label_w":30,"editable":False,"edit_meta":None,"val_color":DIM2})
+    spc()
+
+    hdr1("# RESEARCH")
+    add({"type":"row","h":22,"in_block":True,"label":"Budget/turn","value":fmt_cr(rbudget),
+         "label_w":18,"editable":True,"val_color":CYAN,
+         "edit_meta":{"path":["research_budget"],"type":"float","raw":rbudget}})
+    for proj in act_res:
+        add({"type":"row","h":22,"in_block":True,
+             "label":f"  [{proj.get('field','?')}] {proj.get('name','?')}",
+             "value":f"{proj.get('progress',0.0):.1f}%",
+             "label_w":38,"editable":False,"edit_meta":None,"val_color":GOLD})
+    for t in (comp_tech[-6:] if comp_tech else []):
+        tname = t if isinstance(t,str) else t.get("name",str(t))
+        add({"type":"row","h":22,"in_block":True,"label":f"  ✓ {tname}","value":"",
+             "label_w":40,"editable":False,"edit_meta":None,"val_color":GREEN})
+    spc(20)
+    return items
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PROFILE PANEL  (scroll + render)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class ProfilePanel:
+    """Scrollable profile with click-to-edit."""
+    LPAD = 18
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.items = []; self.content_h = 0
+        self.scrl = Scrollbar(0,0,10,100); self._hov = -1
+    def update_layout(self, lay: Layout):
+        self.lay = lay
+        self.scrl.update_rect(lay.sw-lay.scrl_w, lay.my, lay.scrl_w, lay.mh)
+    def set_items(self, items):
+        self.items = items
+        self.content_h = (items[-1]["y"]+items[-1]["h"]) if items else 0
+        self.scrl.set_content(self.content_h, self.lay.mh)
+        self.scrl.scroll = 0; self.scrl.clamp(); self._hov = -1
+    def _sy(self, iy): return self.lay.my + iy - self.scrl.scroll
+    def draw(self, surf):
+        lay = self.lay; r = lay.main_rect
+        pygame.draw.rect(surf, BG, r); surf.set_clip(r)
+        fm=gf(13); fs=gf(11); f1=gf(16,mono=False); f2=gf(14,mono=False)
+        fn=gf(19,mono=False); fsp=gf(13,mono=False)
+        x0=r.x+self.LPAD; rw=r.w
+        for i, item in enumerate(self.items):
+            sy = self._sy(item["y"]); sh = item["h"]
+            if sy+sh < r.y or sy > r.bottom: continue
+            t = item["type"]
+            if t == "nhdr":
+                pygame.draw.rect(surf,PANEL2,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,ACCENT,(r.x,sy,4,sh))
+                for gx in range(r.x, r.x+rw, 32):
+                    pygame.draw.line(surf,(16,24,36),(gx,sy),(gx,sy+sh),1)
+                tag_s = f"[{item['tag']}]"
+                blit_text(surf,tag_s,x0,sy+14,f1,ACCENT)
+                blit_text(surf,"  "+item["name"],x0+tw(tag_s,f1),sy+12,fn,BRIGHT)
+                pygame.draw.line(surf,BORDER2,(r.x,sy+sh-1),(r.right,sy+sh-1),1)
+            elif t == "hdr1":
+                pygame.draw.rect(surf,PANEL2,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,ACCENT,(r.x,sy,3,sh))
+                blit_text(surf,item["text"],x0,sy+10,f1,CYAN)
+                pygame.draw.line(surf,BORDER,(r.x,sy+sh-1),(r.right,sy+sh-1),1)
+            elif t == "hdr2":
+                pygame.draw.rect(surf,PANEL3,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,TEAL2,(r.x,sy,2,sh))
+                blit_text(surf,item["text"],x0,sy+8,f2,TEAL)
+            elif t == "row":
+                bg = BLK2 if (item.get("in_block") and i%2==0) else (BLOCK if item.get("in_block") else BG)
+                pygame.draw.rect(surf,bg,(r.x,sy,rw,sh))
+                if i == self._hov and item.get("editable"):
+                    pygame.draw.rect(surf,HOV,(r.x,sy,rw,sh))
+                lbl = item.get("label",""); val = str(item.get("value",""))
+                lw_ = item.get("label_w",18); vc = item.get("val_color",TEXT)
+                lbl_s = f"{lbl:<{lw_}}: "
+                blit_text(surf,lbl_s,x0,sy+4,fm,DIM)
+                blit_text(surf,val,x0+tw(lbl_s,fm),sy+4,fm,vc)
+                if item.get("editable"):
+                    pygame.draw.rect(surf,TEAL,(r.right-4,sy,2,sh))
+            elif t == "bar":
+                bg = BLK2 if i%2==0 else BLOCK
+                pygame.draw.rect(surf,bg,(r.x,sy,rw,sh))
+                if i == self._hov and item.get("editable"):
+                    pygame.draw.rect(surf,HOV,(r.x,sy,rw,sh))
+                lbl_s = f"{item['label']:<22} {item['pct']*100:5.1f}%"
+                blit_text(surf,lbl_s,x0,sy+5,fs,DIM)
+                bx = x0+tw(lbl_s,fs)+8
+                draw_bar(surf,bx,sy+(sh-10)//2,160,10,item["pct"],fg=CYAN)
+                blit_text(surf,item["amount"],bx+168,sy+5,fs,GOLD)
+                if item.get("editable"):
+                    pygame.draw.rect(surf,TEAL,(r.right-4,sy,2,sh))
+            elif t == "debtbar":
+                pygame.draw.rect(surf,BLOCK,(r.x,sy,rw,sh))
+                lbl_s = f"{'Debt Load':<18}: "
+                blit_text(surf,lbl_s,x0,sy+5,fm,DIM)
+                bx = x0+tw(lbl_s,fm); pct=item["pct"]
+                fc = RED_C if pct>0.5 else (GOLD if pct>0.2 else GREEN)
+                draw_bar(surf,bx,sy+6,200,10,pct,fg=fc)
+                blit_text(surf,f"  {pct*100:.1f}%",bx+208,sy+5,fm,DIM)
+            elif t == "sep":
+                my = sy+sh//2
+                pygame.draw.line(surf,BORDER2,(r.x+6,my),(r.right-6,my),1)
+            elif t == "sphdr":
+                pygame.draw.rect(surf,PANEL3,(r.x,sy,rw,sh))
+                pygame.draw.rect(surf,GOLD2,(r.x,sy,3,sh))
+                crown = "👑" if item.get("dominant") else "👥"
+                lbl = f"{crown}  {item['name']}"
+                blit_text(surf,lbl,x0,sy+6,fsp,GOLD)
+                blit_text(surf,f"  {item['status']}",x0+tw(lbl,fsp),sy+7,gf(12,mono=False),TEAL)
+        surf.set_clip(None)
+        pygame.draw.rect(surf,BORDER,r,1)
+        self.scrl.draw(surf)
+
+    def on_event(self, event) -> Optional[dict]:
+        lay = self.lay
+        over = pygame.Rect(lay.mx,lay.my,lay.mw+lay.scrl_w,lay.mh)
+        self.scrl.on_event(event, over.collidepoint(pygame.mouse.get_pos()))
+        if event.type == pygame.MOUSEMOTION and lay.main_rect.collidepoint(event.pos):
+            abs_y = event.pos[1]-lay.my+self.scrl.scroll; self._hov = -1
+            for i,item in enumerate(self.items):
+                if item["y"] <= abs_y < item["y"]+item["h"]:
+                    self._hov = i if item.get("editable") else -1; break
+        elif event.type == pygame.MOUSEMOTION: self._hov = -1
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            sr = pygame.Rect(lay.sw-lay.scrl_w,lay.my,lay.scrl_w,lay.mh)
+            if lay.main_rect.collidepoint(event.pos) and not sr.collidepoint(event.pos):
+                abs_y = event.pos[1]-lay.my+self.scrl.scroll
+                for item in self.items:
+                    if item["y"] <= abs_y < item["y"]+item["h"]:
+                        if item.get("editable") and item.get("edit_meta"):
+                            return {"label":item.get("label","Field"),
+                                    "raw":item["edit_meta"].get("raw",""),
+                                    "meta":item["edit_meta"]}
+                        break
+        return None
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SYSTEM MAP PANEL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class SystemMapPanel:
+    """2-D orbital diagram for the nation's home system."""
+    PCOL = {"Terrestrial":(0,180,80),"Gas Giant":(200,120,20),
+            "Ice World":(100,200,240),"Barren":(120,100,80),"Oceanic":(20,80,200)}
+    def __init__(self, lay: Layout):
+        self.lay = lay; self.nation = None; self.sel_planet = None
+        self._prects = {}; self._btn_exp = None
+    def update_layout(self, lay): self.lay = lay
+    def set_nation(self, n): self.nation = n; self.sel_planet = None
+
+    def draw(self, surf):
+        lay = self.lay; r = lay.main_rect
+        pygame.draw.rect(surf, BG, r)
+        if not self.nation:
+            blit_text(surf,"No nation selected",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        star_sys = self.nation.get("star_systems",[])
+        if not star_sys:
+            blit_text(surf,"No system data",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        sys0 = star_sys[0]; planets = sys0.get("planets",[])
+        detail_w = 310 if self.sel_planet else 0
+        map_w = r.w - detail_w; cx = r.x+map_w//2; cy = r.y+r.h//2
+        # Star
+        pygame.draw.circle(surf,(255,220,60),(cx,cy),22)
+        pygame.draw.circle(surf,(255,255,140),(cx,cy),16)
+        blit_text(surf,"★",cx-7,cy-9,gf(16,False),(255,240,100))
+        max_r = min(map_w, r.h)*0.44; step = max_r/max(len(planets),1)
+        self._prects = {}
+        for idx, pl in enumerate(planets):
+            orb_r = int(step*(idx+1))
+            pygame.draw.circle(surf,(20,35,55),(cx,cy),orb_r,1)
+            angle = math.pi*0.5 + idx*0.9
+            px = int(cx+orb_r*math.cos(angle)); py = int(cy+orb_r*math.sin(angle))
+            ptype = pl.get("type","Terrestrial"); pcol = self.PCOL.get(ptype,(80,80,120))
+            dev = pl.get("devastation",0)/100.0
+            if dev > 0.1:
+                pcol = tuple(int(c*(1-dev)+RED_C[i]*dev) for i,c in enumerate(pcol))
+            pr = 8+idx*2
+            pygame.draw.circle(surf,pcol,(px,py),pr)
+            pygame.draw.circle(surf,BRIGHT,(px,py),pr,1)
+            if pl is self.sel_planet:
+                pygame.draw.circle(surf,CYAN,(px,py),pr+5,2)
+            fn = gf(11); pname = pl["name"]
+            blit_text(surf,pname,px-tw(pname,fn)//2,py+pr+4,fn,TEXT)
+            if pl.get("crime_rate",0)>30: pygame.draw.circle(surf,RED_C,(px+pr,py-pr),4)
+            if pl.get("unrest",0)>20:     pygame.draw.circle(surf,GOLD,(px-pr,py-pr),4)
+            self._prects[pl["name"]] = (pl, pygame.Rect(px-pr-2,py-pr-2,pr*2+4,pr*2+4))
+        blit_text(surf,f"★  {sys0['name']}",r.x+14,r.y+12,gf(16,False),BRIGHT)
+        blit_text(surf,f"{len(planets)} planet(s)",r.x+14,r.y+34,gf(11),TEAL)
+        blit_text(surf,"● Crime>30%",r.x+map_w-140,r.y+14,gf(10),RED_C)
+        blit_text(surf,"● Unrest>20%",r.x+map_w-140,r.y+28,gf(10),GOLD)
+        # Detail drawer
+        self._btn_exp = None
+        if self.sel_planet:
+            pl = self.sel_planet
+            dr = pygame.Rect(r.right-detail_w,r.y,detail_w,r.h)
+            pygame.draw.rect(surf,PANEL2,dr)
+            pygame.draw.line(surf,BORDER2,(dr.x,dr.y),(dr.x,dr.bottom),1)
+            corner_deco(surf,dr.x,dr.y,dr.w,dr.h,CYAN,8)
+            x=dr.x+12; y=dr.y+10; f=gf(12); fs=gf(11)
+            blit_text(surf,pl["name"],x,y,gf(15,False),BRIGHT); y+=22
+            pygame.draw.line(surf,BORDER2,(dr.x+4,y),(dr.right-4,y),1); y+=8
+            for lbl,val in [("Type",pl.get("type","?")),("Size",pl.get("size","?")),
+                             ("Habitability",f"{pl.get('habitability',0):.0f}%"),
+                             ("Devastation",f"{pl.get('devastation',0):.0f}%"),
+                             ("Crime Rate",f"{pl.get('crime_rate',0):.0f}%"),
+                             ("Unrest",f"{pl.get('unrest',0):.0f}%")]:
+                blit_text(surf,f"{lbl:<16}: ",x,y,fs,DIM)
+                blit_text(surf,val,x+tw(f"{lbl:<16}: ",fs),y,fs,TEXT); y+=18
+            y+=4; blit_text(surf,"SETTLEMENTS",x,y,fs,TEAL); y+=16
+            for s in pl.get("settlements",[]):
+                blit_text(surf,f"  › {s['name']}  pop:{fmt_pop(s.get('population',0))}",x,y,fs,TEXT); y+=16
+                for sp in s.get("populations",[]):
+                    loy=sp.get("loyalty",0); lc=GREEN if loy>=70 else(GOLD if loy>=40 else RED_C)
+                    blit_text(surf,f"    {sp['species'][:12]}  loy:{loy:.0f}  hap:{sp.get('happiness',0):.0f}",
+                              x,y,gf(10),lc); y+=14
+            y+=6; blit_text(surf,"ORBITAL BUILDINGS",x,y,fs,TEAL); y+=16
+            obs = pl.get("orbital_buildings",[])
+            if obs:
+                for ob in obs: blit_text(surf,f"  ⊕ {ob.get('type','?')} [{ob.get('status','?')}]",x,y,fs,DIM); y+=16
+            else: blit_text(surf,"  None",x,y,fs,DIM2)
+            bx = dr.x+(dr.w-160)//2; by = dr.bottom-42
+            self._btn_exp = Button((bx,by,160,28),"[EXPORT SYSTEM  D]",small=True)
+            self._btn_exp.draw(surf)
+        pygame.draw.rect(surf,BORDER,r,1)
+
+    def on_event(self, event, state) -> Optional[str]:
+        if self._btn_exp and self._btn_exp.on_event(event) and self.nation:
+            return self._export_discord(self.nation)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            for pname,(pl,pr) in self._prects.items():
+                if pr.collidepoint(event.pos):
+                    self.sel_planet = pl; return None
+        return None
+
+    def _export_discord(self, nation) -> str:
+        star_sys = nation.get("star_systems",[])
+        if not star_sys: return ""
+        ss = star_sys[0]; tag = nation_tag(nation["name"]); L=[]; ln=L.append
+        ln(f"-# [{tag}] {nation['name'].upper()} — SYSTEM REPORT")
+        ln(f"# STAR SYSTEM: {ss['name']}")
+        for pl in ss.get("planets",[]):
+            ln("```")
+            ln(f"  {pl['name']}")
+            for k,v in [("Type",pl.get("type","?")),("Size",pl.get("size","?")),
+                         ("Habitability",f"{pl.get('habitability',0):.0f}%"),
+                         ("Devastation",f"{pl.get('devastation',0):.0f}%"),
+                         ("Crime Rate",f"{pl.get('crime_rate',0):.0f}%"),
+                         ("Unrest",f"{pl.get('unrest',0):.0f}%")]:
+                ln(f"    {k:<16}: {v}")
+            for s in pl.get("settlements",[]): ln(f"      › {s['name']}  pop:{fmt_pop(s.get('population',0))}")
+            for ob in pl.get("orbital_buildings",[]): ln(f"      ⊕ {ob.get('type','?')} [{ob.get('status','?')}]")
+            ln("```")
+        return "\n".join(L)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# EVENT LOG PANEL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class EventLogPanel:
+    """Filter / approve / edit / delete d20 events."""
+    RH = 64
+    SEV_COL = {"Critical":RED_C,"Major":GOLD,"Minor":CYAN,"Info":DIM}
+    def __init__(self, lay: Layout):
+        self.lay=lay; self.state=None; self.nation_filter=None
+        self.scrl=Scrollbar(0,0,10,100); self._hov=-1; self._events=[]
+    def update_layout(self, lay):
+        self.lay=lay; self.scrl.update_rect(lay.sw-lay.scrl_w,lay.my,lay.scrl_w,lay.mh)
+    def set_state(self, state, nation_filter=None):
+        self.state=state; self.nation_filter=nation_filter; self._refresh()
+    def _refresh(self):
+        if not self.state: self._events=[]; return
+        self._events=EventLog(self.state).filter(nation=self.nation_filter)
+        self.scrl.set_content(len(self._events)*self.RH+60, self.lay.mh); self.scrl.clamp()
+
+    def draw(self, surf):
+        lay=self.lay; r=lay.main_rect
+        pygame.draw.rect(surf,BG,r)
+        if not self.state:
+            blit_text(surf,"No state loaded.",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        # Toolbar
+        TH=36; pygame.draw.rect(surf,PANEL2,(r.x,r.y,r.w,TH))
+        pygame.draw.line(surf,BORDER2,(r.x,r.y+TH),(r.right,r.y+TH),1)
+        turn=self.state.get("turn",1)
+        approved=sum(1 for e in self._events if e.get("gm_approved"))
+        blit_text(surf,f"T{turn}  Events: {len(self._events)}  Approved: {approved}  |  D = Export Galactic News",
+                  r.x+14,r.y+11,gf(12),TEAL)
+        if not self._events:
+            blit_text(surf,"No events — advance the turn to generate d20 rolls.",r.x+20,r.y+TH+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); self.scrl.draw(surf); return
+        surf.set_clip(pygame.Rect(r.x,r.y+TH,r.w,r.h-TH))
+        f=gf(12); fs=gf(11); f10=gf(10)
+        for i,ev in enumerate(self._events):
+            iy=r.y+TH+i*self.RH-self.scrl.scroll
+            if iy+self.RH<r.y or iy>r.bottom: continue
+            sev=ev.get("severity","Info"); scol=self.SEV_COL.get(sev,DIM)
+            bg=PANEL if i%2==0 else PANEL2
+            pygame.draw.rect(surf,bg,(r.x,iy,r.w,self.RH))
+            if i==self._hov: pygame.draw.rect(surf,HOV,(r.x,iy,r.w,self.RH))
+            pygame.draw.rect(surf,scol,(r.x,iy,3,self.RH))
+            icon=SEVERITY_EMOJI.get(sev,"📊")
+            scope=ev.get("nation","?"); planet=ev.get("planet")
+            if planet: scope+=f" | {planet}"
+            blit_text(surf,f"{icon} {ev.get('title','?')}",r.x+12,iy+6,f,BRIGHT)
+            blit_text(surf,scope,r.x+12,iy+24,fs,TEAL)
+            roll_s=f"d20={ev.get('d20_roll','?')}"; roll=ev.get("d20_roll",10)
+            rc=RED_C if roll<=3 else(GOLD if roll<=7 else(GREEN if roll>=17 else DIM))
+            blit_text(surf,roll_s,r.x+12,iy+42,f10,rc)
+            blit_text(surf,f"T{ev.get('turn','?')}  {sev}",r.x+80,iy+42,f10,DIM)
+            # Body preview
+            body=ev.get("body",""); bp=body[:100]+("…" if len(body)>100 else "")
+            blit_text(surf,bp,r.x+200,iy+42,f10,DIM2)
+            # Approve button area
+            appr=ev.get("gm_approved",False)
+            ax=r.right-160
+            pygame.draw.rect(surf,GREEN2 if appr else BTNBG,(ax,iy+12,130,22),border_radius=2)
+            pygame.draw.rect(surf,GREEN if appr else BORDER2,(ax,iy+12,130,22),1,border_radius=2)
+            astr="✓  APPROVED" if appr else "  APPROVE"
+            blit_text(surf,astr,ax+(130-tw(astr,f10))//2,iy+18,f10,BRIGHT)
+            edited=ev.get("gm_edited",False)
+            if edited: blit_text(surf,"[edited]",ax,iy+38,f10,TEAL)
+        surf.set_clip(None); self.scrl.draw(surf)
+        pygame.draw.rect(surf,BORDER,r,1)
+
+    def on_event(self, event, edit_overlay: EditOverlay) -> Optional[str]:
+        lay=self.lay; r=lay.main_rect
+        over=r.collidepoint(pygame.mouse.get_pos())
+        self.scrl.on_event(event, over)
+        TH=36
+        if event.type==pygame.MOUSEMOTION and r.collidepoint(event.pos):
+            abs_y=event.pos[1]-r.y-TH+self.scrl.scroll
+            self._hov=max(0,abs_y//self.RH) if abs_y>=0 else -1
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1 and r.collidepoint(event.pos):
+            abs_y=event.pos[1]-r.y-TH+self.scrl.scroll
+            idx=abs_y//self.RH
+            if 0<=idx<len(self._events):
+                ev=self._events[idx]; ax=r.right-160
+                if event.pos[0]>=ax:
+                    EventLog(self.state).approve(ev["event_id"]); self._refresh()
+                else:
+                    edit_overlay.open(f"Event {ev['event_id']} body",ev.get("body",""),
+                                      {"path":["_event",ev["event_id"]],"type":"str","raw":ev.get("body","")})
+        return None
+
+    def apply_body_edit(self, event_id, new_body):
+        EventLog(self.state).edit_body(event_id, new_body); self._refresh()
+
+    def export_news(self) -> str:
+        if not self.state: return ""
+        return discord_galactic_news(self.state, self.state.get("turn",1))
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MARKET PANEL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class MarketPanel:
+    """Live price table + modifier editor."""
+    RH = 30
+    def __init__(self, lay: Layout):
+        self.lay=lay; self.state=None; self._hov=-1
+        self._price_rects=[]; self._btn_fluc=None; self._btn_exp=None
+    def update_layout(self, lay): self.lay=lay
+    def set_state(self, state): self.state=state
+
+    def draw(self, surf):
+        lay=self.lay; r=lay.main_rect
+        pygame.draw.rect(surf,BG,r)
+        if not self.state:
+            blit_text(surf,"No state loaded.",r.x+20,r.y+20,gf(13),DIM)
+            pygame.draw.rect(surf,BORDER,r,1); return
+        me=MarketEngine(self.state.get("market",{})); prices=me.get_prices()
+        x=r.x+20; y=r.y+14; f=gf(13); fh=gf(15,False); fs=gf(11); f10=gf(10)
+        blit_text(surf,"# GALACTIC MARKET",x,y,fh,CYAN); y+=30
+        HDR=f"  {'Resource':<20} {'Base':>10}  {'Modifier':>10}  {'Effective':>12}  Trend  (sparkline)"
+        blit_text(surf,HDR,x,y,fs,DIM); y+=6
+        pygame.draw.line(surf,BORDER2,(x,y),(r.right-20,y),1); y+=8
+        TRCOL={"▲":GREEN,"▼":RED_C,"─":DIM}
+        self._price_rects=[]
+        for i,row in enumerate(prices):
+            iy=y+i*self.RH; bg=BLOCK if i%2==0 else BLK2
+            pygame.draw.rect(surf,bg,(r.x,iy,r.w,self.RH))
+            if i==self._hov: pygame.draw.rect(surf,HOV,(r.x,iy,r.w,self.RH))
+            pygame.draw.rect(surf,TEAL2,(r.x,iy,2,self.RH))
+            ln_=f"  {row['resource']:<20} {row['base']:>10.2f} cr  x{row['modifier']:>8.3f}  {row['effective']:>10.2f} cr"
+            blit_text(surf,ln_,x,iy+8,f,TEXT)
+            tc=TRCOL.get(row["trend"],DIM)
+            blit_text(surf,row["trend"],x+tw(ln_,f)+6,iy+8,f,tc)
+            # Sparkline
+            hist=row.get("history",[]); sx=r.right-200; sy=iy+3; sw_=150; sh_=24
+            if len(hist)>=2:
+                mn=min(hist); mx_=max(hist); rng=max(mx_-mn,0.001)
+                pts=[(sx+int(j/(len(hist)-1)*sw_),
+                      sy+int((1-(h-mn)/rng)*sh_)) for j,h in enumerate(hist)]
+                pygame.draw.lines(surf,TEAL,False,pts,1)
+            blit_text(surf,"[edit mod]",r.right-60,iy+10,f10,DIM)
+            self._price_rects.append((row, pygame.Rect(r.x,iy,r.w,self.RH)))
+        by=r.bottom-50; bx=x
+        self._btn_fluc=Button((bx,by,140,30),"[ FLUCTUATE ]",accent=True)
+        self._btn_exp =Button((bx+154,by,180,30),"[ EXPORT MARKET  D ]")
+        self._btn_fluc.draw(surf); self._btn_exp.draw(surf)
+        psst=self.state.get("market",{}).get("psst_nations",[])
+        if psst: blit_text(surf,f"PSST: {', '.join(psst)}",x,by-22,fs,GOLD)
+        pygame.draw.rect(surf,BORDER,r,1)
+
+    def on_event(self, event, edit_overlay: EditOverlay, sm) -> Optional[str]:
+        r=self.lay.main_rect
+        if event.type==pygame.MOUSEMOTION and r.collidepoint(event.pos):
+            for i,(_,pr) in enumerate(self._price_rects):
+                if pr.collidepoint(event.pos): self._hov=i; break
+            else: self._hov=-1
+        if self._btn_fluc and self._btn_fluc.on_event(event):
+            MarketEngine(self.state.get("market",{})).fluctuate_all()
+            sm.mark_dirty(); sm.autosave(); set_status("Market fluctuated.",GOLD); return None
+        if self._btn_exp and self._btn_exp.on_event(event):
+            return discord_market_report(self.state)
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            for row,pr in self._price_rects:
+                if pr.collidepoint(event.pos):
+                    edit_overlay.open(f"{row['resource']} modifier",row["modifier"],
+                                      {"path":["_market",row["resource"]],"type":"float","raw":row["modifier"]})
+                    return None
+        if self._btn_fluc: self._btn_fluc.on_event(event)
+        if self._btn_exp:  self._btn_exp.on_event(event)
+        return None
+
+    def apply_market_edit(self, resource, new_val, sm):
+        MarketEngine(self.state.get("market",{})).set_modifier(resource, new_val)
+        sm.mark_dirty(); sm.autosave(); set_status(f"{resource} modifier → {new_val:.3f}",GREEN)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# TRADE ROUTE MODAL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class TradeModal:
+    """Full-screen modal for building a trade route."""
+    DIST_OPTS = list(PIRATE_BASE_RISK.keys())
+    def __init__(self):
+        self.active=False; self.state=None; self._exporter=""; self._importer=""
+        self._resource=RESOURCE_NAMES[0]; self._export_pct=0.25; self._escort=0.0
+        self._modifier=1.0; self._dist_idx=0; self._transits=[]; self._preview=None
+        self._err=""; self._drag_pct=False; self._drag_esc=False
+        self._res_rects=[]; self._dist_rects=[]; self._pct_slider=None; self._esc_slider=None
+        self._btn_confirm=None; self._btn_export=None; self._btn_cancel=None
+
+    def open(self, state, sel_nation_name):
+        self.active=True; self.state=state
+        self._exporter=sel_nation_name or ""; self._importer=""
+        self._preview=None; self._err=""; self._transits=[]; self._recalc()
+
+    def close(self): self.active=False
+
+    def _nation(self, name):
+        for n in self.state.get("nations",[]): 
+            if n["name"]==name: return n
+        return None
+
+    def _recalc(self):
+        if not self.state or not self._exporter or not self._importer: return
+        en=self._nation(self._exporter)
+        if not en: return
+        try:
+            eng=TradeRouteEngine(self.state)
+            avail=eng.available_export(en,self._resource)
+            qty=avail*self._export_pct
+            dist=self.DIST_OPTS[self._dist_idx]
+            self._preview=eng.calculate(self._exporter,self._importer,self._resource,
+                                        qty,self._transits,dist,self._escort,self._modifier)
+            self._err=""
+        except Exception as e: self._err=str(e); self._preview=None
+
+    def draw(self, surf, lay: Layout):
+        if not self.active: return
+        ov=pygame.Surface((lay.sw,lay.sh),pygame.SRCALPHA); ov.fill((0,0,0,180)); surf.blit(ov,(0,0))
+        mw=min(lay.sw-60,920); mh=min(lay.sh-60,660)
+        mx=(lay.sw-mw)//2; my=(lay.sh-mh)//2; r=pygame.Rect(mx,my,mw,mh)
+        pygame.draw.rect(surf,MODALBG,r); pygame.draw.rect(surf,MODALBDR,r,2)
+        corner_deco(surf,mx,my,mw,mh,CYAN,12)
+        fh=gf(16,False); f=gf(13); fs=gf(11); f10=gf(10)
+        x=mx+20; y=my+14
+        blit_text(surf,"TRADE ROUTE BUILDER",x,y,fh,CYAN); y+=28
+        pygame.draw.line(surf,BORDER2,(mx+4,y),(mx+mw-4,y),1); y+=10
+        col1w=(mw-60)//2; col2x=x+col1w+20; cy=y
+
+        # --- LEFT COLUMN ---
+        blit_text(surf,"Exporter:",x,cy,fs,DIM); cy+=16
+        pygame.draw.rect(surf,BORDER2 if self._exporter else BORDER,(x,cy,col1w-10,22),1)
+        blit_text(surf,self._exporter or "(select in sidebar)",x+4,cy+4,f,BRIGHT if self._exporter else DIM)
+        cy+=26; blit_text(surf,"Importer:",x,cy,fs,DIM); cy+=16
+        pygame.draw.rect(surf,BORDER,(x,cy,col1w-10,22),1)
+        blit_text(surf,self._importer or "(type nation name)",x+4,cy+4,f,BRIGHT if self._importer else DIM)
+        self._imp_rect=pygame.Rect(x,cy,col1w-10,22); cy+=26
+
+        blit_text(surf,"Resource:",x,cy,fs,DIM); cy+=16
+        slot_w=(col1w-10)//len(RESOURCE_NAMES)-2; self._res_rects=[]
+        for i,rn in enumerate(RESOURCE_NAMES):
+            sel=rn==self._resource; rx=x+i*(slot_w+2)
+            bg=TABACT if sel else PANEL2
+            pygame.draw.rect(surf,bg,(rx,cy,slot_w,20),border_radius=2)
+            if sel: pygame.draw.rect(surf,CYAN,(rx,cy,slot_w,20),1,border_radius=2)
+            blit_text(surf,rn[:7],rx+2,cy+4,f10,BRIGHT if sel else DIM)
+            self._res_rects.append((rn,pygame.Rect(rx,cy,slot_w,20)))
+        cy+=28
+        blit_text(surf,f"Export %:  {self._export_pct*100:.0f}%",x,cy,fs,DIM); cy+=16
+        sw_=col1w-10; draw_bar(surf,x,cy,sw_,12,self._export_pct,fg=CYAN)
+        self._pct_slider=pygame.Rect(x,cy,sw_,12); cy+=20
+        if self._exporter and self.state:
+            en=self._nation(self._exporter)
+            if en:
+                eng=TradeRouteEngine(self.state)
+                avail=eng.available_export(en,self._resource); qty=avail*self._export_pct
+                blit_text(surf,f"Avail: {fmt_int(avail)}  Qty/turn: {fmt_int(qty)}",x,cy,fs,TEAL)
+        cy+=20
+
+        blit_text(surf,"Pirate distance:",x,cy,fs,DIM); cy+=16
+        dslot=(col1w-10)//len(self.DIST_OPTS)-2; self._dist_rects=[]
+        for i,d in enumerate(self.DIST_OPTS):
+            sel=i==self._dist_idx; dx=x+i*(dslot+2)
+            bg=TABACT if sel else PANEL2
+            pygame.draw.rect(surf,bg,(dx,cy,dslot,20),border_radius=2)
+            if sel: pygame.draw.rect(surf,GOLD,(dx,cy,dslot,20),1,border_radius=2)
+            blit_text(surf,d[:9],dx+2,cy+4,f10,BRIGHT if sel else DIM)
+            self._dist_rects.append((i,pygame.Rect(dx,cy,dslot,20)))
+        cy+=28
+        blit_text(surf,f"Escort: {self._escort:.0f}%",x,cy,fs,DIM); cy+=16
+        draw_bar(surf,x,cy,sw_,12,self._escort/100,fg=GREEN2)
+        self._esc_slider=pygame.Rect(x,cy,sw_,12); cy+=24
+        blit_text(surf,f"Route modifier: x{self._modifier:.2f}",x,cy,fs,DIM); cy+=16
+
+        # transit list
+        blit_text(surf,"Transit nations:",x,cy,fs,DIM); cy+=16
+        for t in self._transits:
+            blit_text(surf,f"  {t['nation']}  {t['tax_rate']*100:.1f}%",x,cy,f10,TEXT); cy+=16
+
+        # --- RIGHT COLUMN: live preview ---
+        ry=y; blit_text(surf,"ROUTE PREVIEW",col2x,ry,gf(15,False),GOLD); ry+=28
+        pygame.draw.line(surf,BORDER2,(col2x,ry),(mx+mw-20,ry),1); ry+=10
+        if self._preview:
+            P=self._preview
+            for lbl,val,vc in [
+                ("Gross/turn",       fmt_cr(P["gross"]),                     BRIGHT),
+            ]:
+                blit_text(surf,f"{lbl:<22}: ",col2x,ry,f,DIM); blit_text(surf,val,col2x+tw(f"{lbl:<22}: ",f),ry,f,vc); ry+=22
+            for t in P.get("transit_taxes",[]):
+                blit_text(surf,f"  Transit {t['nation'][:14]:<14}: -{fmt_cr(t['amount'])}",col2x,ry,f,RED_C); ry+=22
+            for lbl,val,vc in [
+                ("NET/turn",         fmt_cr(P["net_income"]),                 GREEN),
+                ("",None,TEXT),
+                ("Pirate dist.",     P["pirate_distance"],                    DIM),
+                ("Escort",          f"{P['escort_pct']:.0f}%",              DIM),
+                ("Pirate risk",     f"{P['pirate_risk_pct']:.1f}% / turn",   RED_C if P["pirate_risk_pct"]>15 else GOLD),
+                ("Exp. loss/turn",   fmt_cr(P["expected_pirate_loss"]),      RED_C),
+                ("Unit price",      f"{P['effective_price']:.4f} cr",       DIM),
+                ("Qty/turn",         fmt_int(P["quantity_per_turn"]),        DIM),
+            ]:
+                if val is None: ry+=8; continue
+                blit_text(surf,f"{lbl:<22}: ",col2x,ry,f,DIM); blit_text(surf,val,col2x+tw(f"{lbl:<22}: ",f),ry,f,vc); ry+=22
+            ry+=6; blit_text(surf,"Pirate Risk",col2x,ry,fs,DIM); ry+=14
+            prc=P["pirate_risk_pct"]/100; fc=RED_C if prc>0.2 else(GOLD if prc>0.1 else GREEN)
+            draw_bar(surf,col2x,ry,min(200,mw-col1w-60),10,prc,fg=fc); ry+=18
+        elif self._err:
+            blit_text(surf,f"Error: {self._err}",col2x,ry,fs,RED_C)
+        else:
+            blit_text(surf,"Set exporter + importer to preview.",col2x,ry,fs,DIM)
+
+        # Action buttons
+        bw=130; bby=my+mh-44; bx_=mx+mw-bw*3-30
+        self._btn_confirm=Button((bx_,bby,bw,30),"[ CONFIRM ROUTE ]",accent=True)
+        self._btn_export =Button((bx_+bw+10,bby,bw,30),"[ DISCORD EXPORT ]")
+        self._btn_cancel =Button((bx_+bw*2+20,bby,bw,30),"[ CANCEL ]")
+        for b in (self._btn_confirm,self._btn_export,self._btn_cancel): b.draw(surf)
+        if self._err: blit_text(surf,self._err,mx+20,bby+8,fs,RED_C)
+
+    def on_event(self, event, lay: Layout, sm) -> Optional[str]:
+        if not self.active: return None
+        if event.type==pygame.KEYDOWN:
+            if event.key==pygame.K_ESCAPE: self.close(); return None
+        if event.type==pygame.MOUSEBUTTONDOWN and event.button==1:
+            for rn,r in self._res_rects:
+                if r.collidepoint(event.pos): self._resource=rn; self._recalc()
+            for i,r in self._dist_rects:
+                if r.collidepoint(event.pos): self._dist_idx=i; self._recalc()
+            if self._btn_cancel and self._btn_cancel.on_event(event):
+                self.close(); return None
+            if self._btn_export and self._btn_export.on_event(event) and self._preview:
+                rid=TradeRouteEngine.next_route_id(self.state) if hasattr(TradeRouteEngine,"next_route_id") else "TR????"
+                return discord_trade_route(self._preview, rid)
+            if self._btn_confirm and self._btn_confirm.on_event(event) and self._preview:
+                eng=TradeRouteEngine(self.state); dist=self.DIST_OPTS[self._dist_idx]
+                route=eng.build(self._preview,dist,"")
+                self.state.setdefault("trade_routes",[]).append(route)
+                sm.mark_dirty(); sm.autosave()
+                set_status(f"Route {route['id']} created: {route['name']}",GREEN); self.close(); return "confirmed"
+            if self._pct_slider and self._pct_slider.collidepoint(event.pos): self._drag_pct=True
+            if self._esc_slider and self._esc_slider.collidepoint(event.pos): self._drag_esc=True
+        if event.type==pygame.MOUSEBUTTONUP: self._drag_pct=False; self._drag_esc=False
+        if event.type==pygame.MOUSEMOTION:
+            if self._drag_pct and self._pct_slider:
+                rel=(event.pos[0]-self._pct_slider.x)/max(1,self._pct_slider.w)
+                self._export_pct=max(0.01,min(1.0,rel)); self._recalc()
+            if self._drag_esc and self._esc_slider:
+                rel=(event.pos[0]-self._esc_slider.x)/max(1,self._esc_slider.w)
+                self._escort=max(0.0,min(100.0,rel*100)); self._recalc()
+        for b in (self._btn_confirm,self._btn_export,self._btn_cancel):
+            if b: b.on_event(event)
+        return None
+
+    def set_exporter(self, name): self._exporter=name; self._recalc()
+    def set_importer(self, name): self._importer=name; self._recalc()
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ADVANCE TURN MODAL
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class TurnModal:
+    """Shows d20 roll results after advancing the turn."""
+    def __init__(self):
+        self.active=False; self.events=[]; self.turn=0
+        self._scrl=Scrollbar(0,0,10,100); self._btn_close=None
+
+    def open(self, events, turn):
+        self.active=True; self.events=events; self.turn=turn
+        self._scrl.set_content(max(300,len(events)*54+100),520); self._scrl.scroll=0
+
+    def close(self): self.active=False
+
+    def draw(self, surf, lay: Layout):
+        if not self.active: return
+        ov=pygame.Surface((lay.sw,lay.sh),pygame.SRCALPHA); ov.fill((0,0,0,190)); surf.blit(ov,(0,0))
+        mw=min(lay.sw-100,780); mh=min(lay.sh-80,560)
+        mx=(lay.sw-mw)//2; my=(lay.sh-mh)//2; r=pygame.Rect(mx,my,mw,mh)
+        pygame.draw.rect(surf,MODALBG,r); pygame.draw.rect(surf,ACCENT,r,2)
+        corner_deco(surf,mx,my,mw,mh,GOLD,12)
+        fh=gf(15,False); f=gf(12); fs=gf(11); f10=gf(10)
+        SEV_COL={"Critical":RED_C,"Major":GOLD,"Minor":CYAN,"Info":DIM}
+        blit_text(surf,f"TURN {self.turn} COMPLETE — d20 PLANETARY EVENTS",mx+16,my+12,fh,GOLD)
+        blit_text(surf,f"{len(self.events)} event(s) generated",mx+16,my+34,fs,DIM)
+        pygame.draw.line(surf,BORDER2,(mx+4,my+50),(mx+mw-4,my+50),1)
+        lh=mh-110; lr=pygame.Rect(mx+2,my+54,mw-14,lh)
+        self._scrl.update_rect(mx+mw-12,my+54,10,lh); self._scrl.view_h=lh
+        surf.set_clip(lr)
+        for i,ev in enumerate(self.events):
+            iy=my+56+i*54-self._scrl.scroll
+            if iy+54<lr.y or iy>lr.bottom: continue
+            sev=ev.get("severity","Info"); scol=SEV_COL.get(sev,DIM)
+            bg=PANEL if i%2==0 else PANEL2
+            pygame.draw.rect(surf,bg,(mx+4,iy,mw-18,52))
+            pygame.draw.rect(surf,scol,(mx+4,iy,3,52))
+            roll=ev.get("d20_roll",0); rc=RED_C if roll<=3 else(GOLD if roll<=7 else(GREEN if roll>=17 else DIM))
+            blit_text(surf,f"d20={roll}",mx+14,iy+6,f,rc)
+            blit_text(surf,f"{SEVERITY_EMOJI.get(sev,'📊')} {ev.get('title','?')}",mx+70,iy+6,f,BRIGHT)
+            scope=ev.get("nation","?")
+            if ev.get("planet"): scope+=f" | {ev['planet']}"
+            blit_text(surf,scope,mx+14,iy+24,fs,TEAL)
+            body=ev.get("body",""); bp=body[:120]+("…" if len(body)>120 else "")
+            blit_text(surf,bp,mx+14,iy+40,f10,DIM2)
+        surf.set_clip(None); self._scrl.draw(surf)
+        bx=(lay.sw-140)//2; by=my+mh-40
+        self._btn_close=Button((bx,by,140,30),"[ CLOSE ]",accent=True)
+        self._btn_close.draw(surf)
+
+    def on_event(self, event) -> bool:
+        """Returns True when modal should close."""
+        self._scrl.on_event(event, True)
+        if self._btn_close and self._btn_close.on_event(event): return True
+        if event.type==pygame.KEYDOWN and event.key in (pygame.K_ESCAPE,pygame.K_RETURN,pygame.K_SPACE):
+            return True
+        if self._btn_close: self._btn_close.on_event(event)
+        return False
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CLIPBOARD HELPER
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+def copy_to_clipboard(text: str) -> bool:
+    """Copy text to system clipboard. Returns True on success."""
+    try:
+        import subprocess, platform
+        p=platform.system()
+        if p=="Linux":
+            for cmd in (["xclip","-selection","clipboard"],["xsel","--clipboard","--input"]):
+                try:
+                    proc=subprocess.Popen(cmd,stdin=subprocess.PIPE)
+                    proc.communicate(text.encode()); return True
+                except FileNotFoundError: continue
+        elif p=="Darwin":
+            subprocess.Popen(["pbcopy"],stdin=subprocess.PIPE).communicate(text.encode()); return True
+        elif p=="Windows":
+            subprocess.Popen(["clip"],stdin=subprocess.PIPE,shell=True).communicate(text.encode()); return True
+    except Exception: pass
+    return False
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# MAIN APPLICATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+class App:
+    """
+    Carmine NRP GM Tool — main application loop.
+
+    State machine
+    -------------
+      tab 0  PROFILE   – ProfilePanel + EditOverlay
+      tab 1  SYSTEM MAP – SystemMapPanel
+      tab 2  EVENT LOG  – EventLogPanel + EditOverlay
+      tab 3  MARKET     – MarketPanel + EditOverlay
+      modal  TRADE      – TradeModal (R key)
+      modal  TURN       – TurnModal (T key)
+    """
+    def __init__(self, state_file: Optional[str] = None):
+        pygame.init(); pygame.display.set_caption(f"Carmine NRP GM Tool {VERSION}")
+        self.screen = pygame.display.set_mode((1280,720), pygame.RESIZABLE)
+        self.clock  = pygame.time.Clock()
+        self.lay    = Layout(1280, 720)
+
+        # Engine
+        self.sm     = StateManager(state_file or "carmine_state.json")
+        loaded      = self.sm.load() if state_file else False
+        if not loaded and state_file:
+            set_status(f"Could not load {state_file}", RED_C)
+
+        # Widgets
+        self.tab_bar     = TabBar(self.lay, TAB_NAMES)
+        self.left        = LeftPanel(self.lay)
+        self.profile     = ProfilePanel(self.lay)
+        self.sysmap      = SystemMapPanel(self.lay)
+        self.evlog       = EventLogPanel(self.lay)
+        self.market      = MarketPanel(self.lay)
+        self.edit        = EditOverlay()
+        self.trade_modal = TradeModal()
+        self.turn_modal  = TurnModal()
+
+        self._refresh_nation_list()
+        self._load_nation(0)
+
+    # ── Data helpers ──────────────────────────────
+
+    def _refresh_nation_list(self):
+        names = self.sm.nation_names()
+        self.left.set_nations(names, self.left.selected)
+
+    def _load_nation(self, idx: int):
+        names = self.sm.nation_names()
+        if not names: return
+        idx = max(0, min(idx, len(names)-1))
+        self.left.selected = idx
+        nation = self.sm.state.get("nations",[])[idx]
+        self.profile.set_items(build_profile_items(nation, self.sm.state))
+        self.sysmap.set_nation(nation)
+        self.evlog.set_state(self.sm.state, nation["name"])
+        self.market.set_state(self.sm.state)
+
+    def _current_nation(self) -> Optional[dict]:
+        nations = self.sm.state.get("nations",[])
+        if not nations: return None
+        idx = self.left.selected
+        return nations[min(idx, len(nations)-1)]
+
+    def _do_discord_export(self):
+        """Export currently-active panel to clipboard."""
+        tab = self.tab_bar.active; nation = self._current_nation()
+        if tab == 0 and nation:
+            text = discord_profile(nation, self.sm.state)
+        elif tab == 1 and nation:
+            text = self.sysmap._export_discord(nation)
+        elif tab == 2:
+            text = self.evlog.export_news()
+        elif tab == 3:
+            text = discord_market_report(self.sm.state)
+        else: return
+        ok = copy_to_clipboard(text)
+        set_status("Discord export copied to clipboard!" if ok else "Clipboard unavailable — see terminal.", GREEN if ok else GOLD)
+        print("\n" + "="*60 + "\n" + text + "\n" + "="*60)
+
+    def _do_advance_turn(self):
+        if not self.sm.state.get("nations"): set_status("No nations loaded.",RED_C); return
+        set_status("Advancing turn…", GOLD)
+        pygame.display.flip()
+        events = advance_turn(self.sm)
+        turn   = self.sm.state.get("turn",1)
+        self.turn_modal.open(events, turn)
+        self._refresh_nation_list()
+        self._load_nation(self.left.selected)
+        set_status(f"Turn {turn} advanced. {len(events)} events generated.", GREEN)
+
+    # ── Edit commit ───────────────────────────────
+
+    def _commit_edit(self):
+        raw = self.edit.text; meta = self.edit.meta
+        if meta is None: self.edit.close(); return
+        path = meta.get("path",[])
+        # Event body edit
+        if path and path[0]=="_event":
+            self.evlog.apply_body_edit(path[1], raw)
+            self.edit.close(); set_status("Event body updated.",GREEN); return
+        # Market modifier edit
+        if path and path[0]=="_market":
+            try:
+                val = float(raw.strip())
+                self.market.apply_market_edit(path[1], val, self.sm)
+            except ValueError: set_status("Invalid number.",RED_C)
+            self.edit.close(); return
+        # Nation field edit
+        nation = self._current_nation()
+        if nation and apply_edit(nation, meta, raw):
+            recalc_loyalty_happiness(nation)
+            self.sm.mark_dirty(); self.sm.autosave()
+            self.profile.set_items(build_profile_items(nation, self.sm.state))
+            set_status(f"Updated: {path}", GREEN)
+        else:
+            set_status("Invalid value — edit discarded.", RED_C)
+        self.edit.close()
+
+    # ── Main loop ─────────────────────────────────
+
+    def run(self):
+        running = True; dt = 0.0
+        while running:
+            dt = self.clock.tick(FPS) / 1000.0
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT: running = False; break
+                if event.type == pygame.VIDEORESIZE:
+                    sw, sh = event.w, event.h
+                    self.screen = pygame.display.set_mode((sw,sh), pygame.RESIZABLE)
+                    self.lay.update(sw,sh)
+                    for obj in (self.tab_bar,self.left,self.profile,self.sysmap,
+                                self.evlog,self.market):
+                        obj.update_layout(self.lay)
+
+                # Turn modal absorbs all events when open
+                if self.turn_modal.active:
+                    if self.turn_modal.on_event(event): self.turn_modal.close()
+                    continue
+
+                # Trade modal
+                if self.trade_modal.active:
+                    result = self.trade_modal.on_event(event, self.lay, self.sm)
+                    if result and result != "confirmed":
+                        ok = copy_to_clipboard(result)
+                        set_status("Trade route export copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+                    if result == "confirmed": self._load_nation(self.left.selected)
+                    continue
+
+                # Edit overlay
+                if self.edit.active:
+                    res = self.edit.on_event(event)
+                    if res == "confirm": self._commit_edit()
+                    elif res == "cancel": self.edit.close(); set_status("Edit cancelled.",DIM)
+                    continue
+
+                # Global keyboard shortcuts
+                if event.type == pygame.KEYDOWN:
+                    k = event.key
+                    if k == pygame.K_s: self.sm.autosave(); set_status("Saved.",GREEN)
+                    elif k == pygame.K_d: self._do_discord_export()
+                    elif k == pygame.K_t: self._do_advance_turn()
+                    elif k == pygame.K_r:
+                        n = self._current_nation()
+                        self.trade_modal.open(self.sm.state, n["name"] if n else "")
+                    elif k == pygame.K_UP:
+                        self._load_nation(self.left.selected - 1)
+                    elif k == pygame.K_DOWN:
+                        self._load_nation(self.left.selected + 1)
+                    elif k == pygame.K_ESCAPE: running = False; break
+                    elif k in (pygame.K_PAGEUP, pygame.K_PAGEDOWN):
+                        delta = -self.profile.lay.mh if k==pygame.K_PAGEUP else self.profile.lay.mh
+                        self.profile.scrl.scroll = max(0, self.profile.scrl.scroll + delta)
+                        self.profile.scrl.clamp()
+
+                # Tab bar
+                new_tab = self.tab_bar.on_event(event)
+                if new_tab is not None: self._load_nation(self.left.selected)
+
+                # Left panel
+                nation_idx, action = self.left.on_event(event)
+                if nation_idx is not None: self._load_nation(nation_idx)
+                if action == "save":  self.sm.autosave(); set_status("Saved.",GREEN)
+                if action == "disc":  self._do_discord_export()
+                if action == "adv":   self._do_advance_turn()
+                if action == "trade":
+                    n = self._current_nation()
+                    self.trade_modal.open(self.sm.state, n["name"] if n else "")
+
+                # Panel events
+                tab = self.tab_bar.active
+                if tab == 0:
+                    hit = self.profile.on_event(event)
+                    if hit: self.edit.open(hit["label"], hit["raw"], hit["meta"])
+                elif tab == 1:
+                    result = self.sysmap.on_event(event, self.sm.state)
+                    if result:
+                        ok = copy_to_clipboard(result)
+                        set_status("System export copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+                elif tab == 2:
+                    self.evlog.on_event(event, self.edit)
+                elif tab == 3:
+                    result = self.market.on_event(event, self.edit, self.sm)
+                    if result:
+                        ok = copy_to_clipboard(result)
+                        set_status("Market report copied!" if ok else "See terminal.", GREEN if ok else GOLD)
+                        print("\n"+result)
+
+            # ── DRAW ─────────────────────────────────────
+            self.screen.fill(BG)
+            tab = self.tab_bar.active
+            n   = self._current_nation()
+            nname = n["name"] if n else "—"
+            state = self.sm.state
+            draw_top_bar(self.screen, self.lay, nname,
+                         state.get("turn",1), state.get("year",2200),
+                         state.get("quarter",1), self.sm._dirty)
+            self.tab_bar.draw(self.screen)
+            self.left.draw(self.screen, state.get("turn",1),
+                           state.get("year",2200), state.get("quarter",1))
+            if tab == 0: self.profile.draw(self.screen)
+            elif tab == 1: self.sysmap.draw(self.screen)
+            elif tab == 2: self.evlog.draw(self.screen)
+            elif tab == 3: self.market.draw(self.screen)
+            draw_status_bar(self.screen, self.lay)
+            self.edit.draw(self.screen, self.lay, dt)
+            self.turn_modal.draw(self.screen, self.lay)
+            self.trade_modal.draw(self.screen, self.lay)
+            pygame.display.flip()
+
+        pygame.quit()
+        sys.exit(0)
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ENTRY POINT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if __name__ == "__main__":
-    main()
+    sf = sys.argv[1] if len(sys.argv) > 1 else None
+    App(sf).run()
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ENTRY POINT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+if __name__ == "__main__":
+    sf = sys.argv[1] if len(sys.argv) > 1 else None
+    App(sf).run()z
