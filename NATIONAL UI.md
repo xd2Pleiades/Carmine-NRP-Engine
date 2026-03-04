@@ -130,7 +130,7 @@ Planets:
 
 
 IF = CAPITALIST, export credits are from trade, while if = PLANNED, export credits are from surplus production sold to other nations.
-  Trade = --- cr (--- cr from exports, --- cr from imports) driven by market demand and supply, influenced by economic policies and galactic market conditions.
+  Trade* = --- cr (--- cr from exports, --- cr from imports) driven by market demand and supply, influenced by economic policies and galactic market conditions.
   Trade_balance = --- cr (--- cr from exports - --- cr from imports), indicating the net effect of trade on the economy, with a positive balance contributing to economic growth and a negative balance indicating a trade deficit.
   Investments = --- cr, representing the total amount of capital invested in various sectors of the economy, which can drive growth and development.
   Subsidies = --- cr, indicating the financial support provided by the government to specific industries or sectors, which can influence production and economic stability.
@@ -170,6 +170,16 @@ Colonization of planets: works as building settlements and districts on planets,
 
 Planet has status, such as attractiveness to migration, climate, amenities, population capacity, and logistics, which can influence population growth, economic development, and private investment. The status of a planet can also impact the success of colonization efforts and the overall development of the planet.
 
+# nation_territories -> star_system planet_handler.py
+Allows building buildings, spaceplatforms, districts
+  PLANNED, allows additions of these
+  MARKET, automated building of these
+  MIXED both 
+Dictionary for stars, gravity, and planet types with their stats
+# national_territory_ui
+Allows addition of star systems, planets and randomization upon initialization with console, in  program editor
+Allows Discord output  export
+
 Military works as,
 - Spacefleet (Navy to Fleets)
 - Aerspace Forces (Air Force to Wings)
@@ -183,6 +193,7 @@ Ships/aircrafts have special properties such as speed, range, and combat capabil
 Ships/aircrafts can be stationed in space or on planets, while ground forces are stationed on planets or stationed aboard ships/aircrafts.
 Ground Forces that was picked up by ships/aircrafts can be deployed to planets or other locations, awhile the manpower amount may exceed, the remaining manpower will be left stranded and their fate will be determined by GM decision.
 
+# military_handler.py
 Spacefleet, Aerospace Forces, and Ground Forces units have these properties:
 - Name
 - Type
