@@ -766,7 +766,7 @@
           "language": "Galatic Common",
           "religion": "Pantheon of Coin",
           "status": "dominant",
-          "loyalty": 85
+          "loyalty": 65
         },
         {
           "name": "Varek",
@@ -776,7 +776,7 @@
           "language": "Galactic Common",
           "religion": "Pantheon of Coin",
           "status": "minority",
-          "loyalty": 85
+          "loyalty": 65
         },
         {
           "name": "Cethari",
@@ -786,7 +786,7 @@
           "language": "Galactic Common",
           "religion": "The Deep Resonance",
           "status": "minority",
-          "loyalty": 100
+          "loyalty": 80
         }
       ],
       "unit_groups": [],
@@ -821,14 +821,14 @@
             {
               "name": "Dominum Aetheris",
               "system": "Trade Co System",
-              "climate": "Temperate",
+              "climate": "Desert",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 1000000000.0,
+              "pop_assigned": 135000000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -855,76 +855,1685 @@
               ],
               "settlements": [
                 {
-                  "name": "Capital City",
-                  "controlling_nation": "Trade Confederation",
-                  "population": 1043904893.0,
-                  "amenities": 60.0,
-                  "loyalty": 80.0,
-                  "attractiveness": 74.75,
-                  "multi_nation_pct": {},
+                  "name": "Dominum Aetheris Alpha",
+                  "population": 45000000,
+                  "loyalty": 74.6,
+                  "amenities": 39.5,
                   "districts": [
                     {
-                      "type": "Residential",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Urban",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Power",
+                      "status": "active"
                     },
                     {
                       "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
                       "type": "Mining",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
-                      "type": "Energy Plant",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Power",
+                      "status": "active"
                     },
                     {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "Dominum Aetheris Beta",
+                  "population": 45000000,
+                  "loyalty": 43.1,
+                  "amenities": 37.3,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "Dominum Aetheris Gamma",
+                  "population": 45000000,
+                  "loyalty": 78.2,
+                  "amenities": 68.9,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ],
+              "type": "Barren",
+              "size": "Huge",
+              "habitability": 27.0,
+              "devastation": 10.1,
+              "crime_rate": 0,
+              "unrest": 31.9
+            }
+          ],
+          "orbital_structures": []
+        },
+        {
+          "name": "System Beta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Beta Alpha",
+              "type": "Toxic",
+              "size": "Medium",
+              "climate": "Toxic",
+              "habitability": 62.4,
+              "devastation": 1.3,
+              "crime_rate": 3.9,
+              "unrest": 2.3,
+              "pop_assigned": 124800000,
+              "settlements": [
+                {
+                  "name": "System Beta Alpha Alpha",
+                  "population": 124800000,
+                  "loyalty": 48.7,
+                  "amenities": 65.8,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Beta Beta",
+              "type": "Jungle",
+              "size": "Tiny",
+              "climate": "Jungle",
+              "habitability": 89.9,
+              "devastation": 11.2,
+              "crime_rate": 22.9,
+              "unrest": 10.2,
+              "pop_assigned": 44950000,
+              "settlements": [
+                {
+                  "name": "System Beta Beta Alpha",
+                  "population": 44950000,
+                  "loyalty": 42.0,
+                  "amenities": 35.5,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Beta Gamma",
+              "type": "Jungle",
+              "size": "Huge",
+              "climate": "Temperate",
+              "habitability": 68.4,
+              "devastation": 9.1,
+              "crime_rate": 18.7,
+              "unrest": 1.3,
+              "pop_assigned": 342000000,
+              "settlements": [
+                {
+                  "name": "System Beta Gamma Alpha",
+                  "population": 114000000,
+                  "loyalty": 70.1,
+                  "amenities": 58.7,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Beta Gamma Beta",
+                  "population": 114000000,
+                  "loyalty": 48.2,
+                  "amenities": 38.3,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Beta Gamma Gamma",
+                  "population": 114000000,
+                  "loyalty": 48.2,
+                  "amenities": 75.2,
+                  "districts": [
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
                     }
                   ]
                 }
               ]
             }
-          ],
-          "orbital_structures": []
+          ]
+        },
+        {
+          "name": "System Gamma",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Gamma Alpha",
+              "type": "Ocean",
+              "size": "Small",
+              "climate": "Toxic",
+              "habitability": 79.7,
+              "devastation": 3.3,
+              "crime_rate": 10.9,
+              "unrest": 0.4,
+              "pop_assigned": 79700000,
+              "settlements": [
+                {
+                  "name": "System Gamma Alpha Alpha",
+                  "population": 26566667,
+                  "loyalty": 76.8,
+                  "amenities": 72.8,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Alpha Beta",
+                  "population": 26566667,
+                  "loyalty": 62.4,
+                  "amenities": 57.3,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Alpha Gamma",
+                  "population": 26566667,
+                  "loyalty": 58.7,
+                  "amenities": 32.6,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Gamma Beta",
+              "type": "Gas Giant",
+              "size": "Huge",
+              "climate": "Temperate",
+              "habitability": 47.3,
+              "devastation": 10.4,
+              "crime_rate": 13.1,
+              "unrest": 1.3,
+              "pop_assigned": 236500000,
+              "settlements": [
+                {
+                  "name": "System Gamma Beta Alpha",
+                  "population": 118250000,
+                  "loyalty": 49.1,
+                  "amenities": 35.0,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Beta Beta",
+                  "population": 118250000,
+                  "loyalty": 50.8,
+                  "amenities": 69.5,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Gamma Gamma",
+              "type": "Continental",
+              "size": "Huge",
+              "climate": "Desert",
+              "habitability": 67.8,
+              "devastation": 2.5,
+              "crime_rate": 10.4,
+              "unrest": 15.5,
+              "pop_assigned": 339000000,
+              "settlements": [
+                {
+                  "name": "System Gamma Gamma Alpha",
+                  "population": 113000000,
+                  "loyalty": 51.6,
+                  "amenities": 79.9,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Gamma Beta",
+                  "population": 113000000,
+                  "loyalty": 83.9,
+                  "amenities": 77.9,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Gamma Gamma",
+                  "population": 113000000,
+                  "loyalty": 58.9,
+                  "amenities": 55.1,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Gamma Delta",
+              "type": "Barren",
+              "size": "Huge",
+              "climate": "Desert",
+              "habitability": 74.4,
+              "devastation": 0.3,
+              "crime_rate": 23.8,
+              "unrest": 18.0,
+              "pop_assigned": 372000000,
+              "settlements": [
+                {
+                  "name": "System Gamma Delta Alpha",
+                  "population": 186000000,
+                  "loyalty": 84.2,
+                  "amenities": 77.3,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Delta Beta",
+                  "population": 186000000,
+                  "loyalty": 64.9,
+                  "amenities": 71.3,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "name": "System Gamma Epsilon",
+              "type": "Barren",
+              "size": "Medium",
+              "climate": "Temperate",
+              "habitability": 73.4,
+              "devastation": 0.3,
+              "crime_rate": 24.2,
+              "unrest": 2.6,
+              "pop_assigned": 146800000,
+              "settlements": [
+                {
+                  "name": "System Gamma Epsilon Alpha",
+                  "population": 48933333,
+                  "loyalty": 50.7,
+                  "amenities": 69.7,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Epsilon Beta",
+                  "population": 48933333,
+                  "loyalty": 68.6,
+                  "amenities": 79.9,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Epsilon Gamma",
+                  "population": 48933333,
+                  "loyalty": 68.4,
+                  "amenities": 52.9,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Delta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Delta Alpha",
+              "type": "Terrestrial",
+              "size": "Huge",
+              "climate": "Arid",
+              "habitability": 64.2,
+              "devastation": 13.6,
+              "crime_rate": 5.2,
+              "unrest": 4.7,
+              "pop_assigned": 321000000,
+              "settlements": [
+                {
+                  "name": "System Delta Alpha Alpha",
+                  "population": 107000000,
+                  "loyalty": 47.4,
+                  "amenities": 43.5,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Delta Alpha Beta",
+                  "population": 107000000,
+                  "loyalty": 74.2,
+                  "amenities": 50.2,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Delta Alpha Gamma",
+                  "population": 107000000,
+                  "loyalty": 45.0,
+                  "amenities": 70.4,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Epsilon",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Epsilon Alpha",
+              "type": "Gas Giant",
+              "size": "Large",
+              "climate": "Jungle",
+              "habitability": 55.5,
+              "devastation": 7.8,
+              "crime_rate": 3.8,
+              "unrest": 17.1,
+              "pop_assigned": 194250000,
+              "settlements": [
+                {
+                  "name": "System Epsilon Alpha Alpha",
+                  "population": 194250000,
+                  "loyalty": 50.3,
+                  "amenities": 43.7,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Zeta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Zeta Alpha",
+              "type": "Jungle",
+              "size": "Medium",
+              "climate": "Desert",
+              "habitability": 73.0,
+              "devastation": 11.9,
+              "crime_rate": 6.4,
+              "unrest": 5.0,
+              "pop_assigned": 146000000,
+              "settlements": [
+                {
+                  "name": "System Zeta Alpha Alpha",
+                  "population": 73000000,
+                  "loyalty": 52.3,
+                  "amenities": 67.4,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Zeta Alpha Beta",
+                  "population": 73000000,
+                  "loyalty": 48.7,
+                  "amenities": 76.8,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Prime",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Secundus",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Tertius",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Tertius Alpha",
+              "type": "Arctic",
+              "size": "Huge",
+              "climate": "Temperate",
+              "habitability": 41.9,
+              "devastation": 7.6,
+              "crime_rate": 23.3,
+              "unrest": 8.2,
+              "pop_assigned": 209500000,
+              "settlements": [
+                {
+                  "name": "System Tertius Alpha Alpha",
+                  "population": 104750000,
+                  "loyalty": 79.4,
+                  "amenities": 47.0,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Tertius Alpha Beta",
+                  "population": 104750000,
+                  "loyalty": 82.7,
+                  "amenities": 55.8,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System IV",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System V",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System VI",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System VI Alpha",
+              "type": "Terrestrial",
+              "size": "Medium",
+              "climate": "Desert",
+              "habitability": 69.6,
+              "devastation": 4.4,
+              "crime_rate": 20.4,
+              "unrest": 1.4,
+              "pop_assigned": 139200000,
+              "settlements": [
+                {
+                  "name": "System VI Alpha Alpha",
+                  "population": 46400000,
+                  "loyalty": 47.0,
+                  "amenities": 79.5,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System VI Alpha Beta",
+                  "population": 46400000,
+                  "loyalty": 69.1,
+                  "amenities": 55.4,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System VI Alpha Gamma",
+                  "population": 46400000,
+                  "loyalty": 52.1,
+                  "amenities": 66.7,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Alpha",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Alpha Alpha",
+              "type": "Toxic",
+              "size": "Large",
+              "climate": "Arid",
+              "habitability": 11.0,
+              "devastation": 1.6,
+              "crime_rate": 17.7,
+              "unrest": 7.9,
+              "pop_assigned": 38500000,
+              "settlements": [
+                {
+                  "name": "System Alpha Alpha Alpha",
+                  "population": 19250000,
+                  "loyalty": 40.6,
+                  "amenities": 45.0,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Alpha Alpha Beta",
+                  "population": 19250000,
+                  "loyalty": 54.4,
+                  "amenities": 47.7,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Beta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Gamma",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Gamma Alpha",
+              "type": "Arctic",
+              "size": "Tiny",
+              "climate": "Oceanic",
+              "habitability": 49.0,
+              "devastation": 7.1,
+              "crime_rate": 1.3,
+              "unrest": 11.1,
+              "pop_assigned": 24500000,
+              "settlements": [
+                {
+                  "name": "System Gamma Alpha Alpha",
+                  "population": 12250000,
+                  "loyalty": 73.3,
+                  "amenities": 45.5,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Gamma Alpha Beta",
+                  "population": 12250000,
+                  "loyalty": 67.1,
+                  "amenities": 65.9,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Delta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Delta Alpha",
+              "type": "Terrestrial",
+              "size": "Small",
+              "climate": "Arid",
+              "habitability": 35.1,
+              "devastation": 14.4,
+              "crime_rate": 9.8,
+              "unrest": 16.1,
+              "pop_assigned": 35100000,
+              "settlements": [
+                {
+                  "name": "System Delta Alpha Alpha",
+                  "population": 17550000,
+                  "loyalty": 65.3,
+                  "amenities": 52.0,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Delta Alpha Beta",
+                  "population": 17550000,
+                  "loyalty": 46.5,
+                  "amenities": 48.7,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Epsilon",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Epsilon Alpha",
+              "type": "Arid",
+              "size": "Small",
+              "climate": "Desert",
+              "habitability": 66.8,
+              "devastation": 11.5,
+              "crime_rate": 12.8,
+              "unrest": 1.8,
+              "pop_assigned": 66800000,
+              "settlements": [
+                {
+                  "name": "System Epsilon Alpha Alpha",
+                  "population": 22266667,
+                  "loyalty": 80.5,
+                  "amenities": 71.1,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Epsilon Alpha Beta",
+                  "population": 22266667,
+                  "loyalty": 47.5,
+                  "amenities": 45.7,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Epsilon Alpha Gamma",
+                  "population": 22266667,
+                  "loyalty": 74.5,
+                  "amenities": 48.4,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Zeta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Zeta Alpha",
+              "type": "Gas Giant",
+              "size": "Medium",
+              "climate": "Arctic",
+              "habitability": 78.1,
+              "devastation": 7.0,
+              "crime_rate": 1.9,
+              "unrest": 3.9,
+              "pop_assigned": 156200000,
+              "settlements": [
+                {
+                  "name": "System Zeta Alpha Alpha",
+                  "population": 156200000,
+                  "loyalty": 75.0,
+                  "amenities": 53.7,
+                  "districts": [
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Prime",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Prime Alpha",
+              "type": "Jungle",
+              "size": "Huge",
+              "climate": "Jungle",
+              "habitability": 88.7,
+              "devastation": 11.2,
+              "crime_rate": 16.2,
+              "unrest": 5.4,
+              "pop_assigned": 443500000,
+              "settlements": [
+                {
+                  "name": "System Prime Alpha Alpha",
+                  "population": 147833333,
+                  "loyalty": 65.8,
+                  "amenities": 58.9,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Prime Alpha Beta",
+                  "population": 147833333,
+                  "loyalty": 52.9,
+                  "amenities": 68.2,
+                  "districts": [
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Prime Alpha Gamma",
+                  "population": 147833333,
+                  "loyalty": 44.0,
+                  "amenities": 74.7,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Secundus",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Secundus Alpha",
+              "type": "Desert",
+              "size": "Tiny",
+              "climate": "Jungle",
+              "habitability": 43.5,
+              "devastation": 8.0,
+              "crime_rate": 9.8,
+              "unrest": 2.2,
+              "pop_assigned": 21750000,
+              "settlements": [
+                {
+                  "name": "System Secundus Alpha Alpha",
+                  "population": 10875000,
+                  "loyalty": 48.8,
+                  "amenities": 35.0,
+                  "districts": [
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Secundus Alpha Beta",
+                  "population": 10875000,
+                  "loyalty": 46.4,
+                  "amenities": 54.2,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Tertius",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Tertius Alpha",
+              "type": "Arctic",
+              "size": "Small",
+              "climate": "Jungle",
+              "habitability": 66.4,
+              "devastation": 4.7,
+              "crime_rate": 5.6,
+              "unrest": 12.9,
+              "pop_assigned": 66400000,
+              "settlements": [
+                {
+                  "name": "System Tertius Alpha Alpha",
+                  "population": 22133333,
+                  "loyalty": 70.8,
+                  "amenities": 54.0,
+                  "districts": [
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Tertius Alpha Beta",
+                  "population": 22133333,
+                  "loyalty": 64.9,
+                  "amenities": 60.7,
+                  "districts": [
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Tertius Alpha Gamma",
+                  "population": 22133333,
+                  "loyalty": 55.4,
+                  "amenities": 48.8,
+                  "districts": [
+                    {
+                      "type": "Urban",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Agricultural",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System IV",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
         }
       ],
       "is_colony_start": false,
@@ -2694,14 +4303,14 @@
             {
               "name": "Eden",
               "system": "Regnum D System",
-              "climate": "Arid",
+              "climate": "Oceanic",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 19350000,
+              "pop_assigned": 249200000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -2729,28 +4338,20 @@
               "settlements": [
                 {
                   "name": "Eden Alpha",
-                  "population": 9675000,
-                  "loyalty": 71.1,
-                  "amenities": 72.0,
+                  "population": 124600000,
+                  "loyalty": 63.4,
+                  "amenities": 64.7,
                   "districts": [
                     {
-                      "type": "Industrial Military",
+                      "type": "Urban",
                       "status": "active"
                     },
                     {
-                      "type": "Residential",
+                      "type": "Urban",
                       "status": "active"
                     },
                     {
-                      "type": "Industrial Military",
-                      "status": "active"
-                    },
-                    {
-                      "type": "Military",
-                      "status": "active"
-                    },
-                    {
-                      "type": "Residential",
+                      "type": "Industrial Civilian",
                       "status": "active"
                     },
                     {
@@ -2761,35 +4362,31 @@
                 },
                 {
                   "name": "Eden Beta",
-                  "population": 9675000,
-                  "loyalty": 68.5,
-                  "amenities": 57.5,
+                  "population": 124600000,
+                  "loyalty": 66.4,
+                  "amenities": 70.9,
                   "districts": [
                     {
-                      "type": "Industrial Military",
+                      "type": "Urban",
                       "status": "active"
                     },
                     {
-                      "type": "Industrial Military",
+                      "type": "Power",
                       "status": "active"
                     },
                     {
-                      "type": "Industrial Military",
-                      "status": "active"
-                    },
-                    {
-                      "type": "Industrial Civilian",
+                      "type": "Military",
                       "status": "active"
                     }
                   ]
                 }
               ],
-              "type": "Continental",
-              "size": "Tiny",
-              "habitability": 38.7,
-              "devastation": 4.0,
-              "crime_rate": 9.3,
-              "unrest": 6.2
+              "type": "Terrestrial",
+              "size": "Large",
+              "habitability": 71.2,
+              "devastation": 12.8,
+              "crime_rate": 13.0,
+              "unrest": 7.4
             }
           ],
           "orbital_structures": []
@@ -3845,6 +5442,180 @@
             }
           ],
           "orbital_structures": []
+        },
+        {
+          "name": "System Beta",
+          "notes": "",
+          "coordinates": "",
+          "planets": [
+            {
+              "name": "System Beta Alpha",
+              "type": "Toxic",
+              "size": "Huge",
+              "climate": "Arctic",
+              "habitability": 93.7,
+              "devastation": 9.7,
+              "crime_rate": 15.5,
+              "unrest": 4.0,
+              "pop_assigned": 562200000,
+              "settlements": [
+                {
+                  "name": "System Beta Alpha Alpha",
+                  "population": 281100000,
+                  "loyalty": 45.9,
+                  "amenities": 74.0,
+                  "districts": [
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "System Beta Alpha Beta",
+                  "population": 281100000,
+                  "loyalty": 82.1,
+                  "amenities": 40.4,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "active"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "System Gamma",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Delta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Epsilon",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Zeta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Prime",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Secundus",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Tertius",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System IV",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System V",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System VI",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Alpha",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Beta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Gamma",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Delta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Epsilon",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Zeta",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
+        },
+        {
+          "name": "System Prime",
+          "notes": "",
+          "coordinates": "",
+          "planets": []
         }
       ],
       "is_colony_start": false,
@@ -4606,7 +6377,7 @@
           "language": "Naihongou",
           "religion": "Shintoism",
           "status": "dominant",
-          "loyalty": 85
+          "loyalty": 80
         },
         {
           "name": "Igyokkyan",
@@ -4616,7 +6387,7 @@
           "language": "Fukuaynou",
           "religion": "Animism",
           "status": "minority",
-          "loyalty": 65
+          "loyalty": 60
         },
         {
           "name": "Ranshoukzo",
@@ -4626,7 +6397,7 @@
           "language": "Abehagoruma",
           "religion": "Orthodox Christianity",
           "status": "minority",
-          "loyalty": 55
+          "loyalty": 50
         }
       ],
       "unit_groups": [],
@@ -4661,14 +6432,14 @@
             {
               "name": "Yorigami Prime",
               "system": "Yorigami System",
-              "climate": "Temperate",
+              "climate": "Arctic",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 15000000000.0,
+              "pop_assigned": 2760000000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -4695,73 +6466,80 @@
               ],
               "settlements": [
                 {
-                  "name": "Capital City",
-                  "controlling_nation": "Yorigami Inter-Planetary Industrial Enterprises",
-                  "population": 15658573387.0,
-                  "amenities": 60.0,
-                  "loyalty": 80.0,
-                  "attractiveness": 74.75,
-                  "multi_nation_pct": {},
+                  "name": "Yorigami Prime Alpha",
+                  "population": 920000000,
+                  "loyalty": 80.9,
+                  "amenities": 62.1,
                   "districts": [
                     {
-                      "type": "Residential",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Urban",
+                      "status": "active"
                     },
                     {
-                      "type": "Urban",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Power",
+                      "status": "active"
                     },
                     {
                       "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "Yorigami Prime Beta",
+                  "population": 920000000,
+                  "loyalty": 74.7,
+                  "amenities": 56.1,
+                  "districts": [
                     {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Residential",
+                      "status": "active"
                     },
                     {
                       "type": "Mining",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
-                      "type": "Energy Plant",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Industrial Military",
+                      "status": "active"
                     },
                     {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Agricultural",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Military",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Residential",
+                      "status": "active"
+                    }
+                  ]
+                },
+                {
+                  "name": "Yorigami Prime Gamma",
+                  "population": 920000000,
+                  "loyalty": 75.1,
+                  "amenities": 49.3,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "active"
+                    },
+                    {
+                      "type": "Power",
+                      "status": "active"
                     }
                   ]
                 }
-              ]
+              ],
+              "crime_rate": 19.3,
+              "type": "Continental",
+              "size": "Huge",
+              "habitability": 36.8,
+              "devastation": 6.4,
+              "unrest": 13.6
             }
           ],
           "orbital_structures": []
@@ -5244,7 +7022,7 @@
           "language": "Verbum Lunarius",
           "religion": "Imperial Cult",
           "status": "dominant",
-          "loyalty": 82,
+          "loyalty": 78,
           "conscription_rate": 0.5
         },
         {
@@ -5255,7 +7033,7 @@
           "language": "Verbum Lunarius",
           "religion": "Imperial Cult",
           "status": "dominant",
-          "loyalty": 95
+          "loyalty": 91
         }
       ],
       "unit_groups": [
@@ -14924,14 +16702,14 @@
             {
               "name": "Union of Prime",
               "system": "Union of System",
-              "climate": "Temperate",
+              "climate": "Arid",
               "explored_pct": 100.0,
               "colonization_pct": 100.0,
               "urbanization_pct": 30.0,
               "industrialization_pct": 40.0,
               "spacefaring_infrastructure": 2,
               "colony_ships_docked": 0,
-              "pop_assigned": 28000000000.0,
+              "pop_assigned": 680400000,
               "auto_tick": false,
               "colonies": [
                 {
@@ -14958,73 +16736,32 @@
               ],
               "settlements": [
                 {
-                  "name": "Capital City",
-                  "controlling_nation": "Union of the Red Horizon",
-                  "population": 29229336989.0,
-                  "amenities": 60.0,
-                  "loyalty": 80.0,
-                  "attractiveness": 74.75,
-                  "multi_nation_pct": {},
+                  "name": "Union of Prime Alpha",
+                  "population": 680400000,
+                  "loyalty": 82.6,
+                  "amenities": 45.0,
                   "districts": [
                     {
-                      "type": "Residential",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Urban",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Agricultural",
+                      "status": "active"
                     },
                     {
                       "type": "Mining",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "status": "active"
                     },
                     {
-                      "type": "Energy Plant",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "Homeworld",
-                      "built_turn": 0,
-                      "workforce": 0
+                      "type": "Mining",
+                      "status": "active"
                     }
                   ]
                 }
-              ]
+              ],
+              "unrest": 5.0,
+              "crime_rate": 4.0,
+              "type": "Jungle",
+              "size": "Small",
+              "habitability": 24.3,
+              "devastation": 14.2
             }
           ],
           "orbital_structures": []
@@ -15491,6 +17228,321 @@
       "roll": 6,
       "label": "Normal Output",
       "description": "Regnum Dei: Food - Normal Output",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Yorigami Inter-Planetary Industrial Enterprises",
+      "roll": 8,
+      "label": "Protests",
+      "description": "Yorigami Inter-Planetary Industrial Enterprises: Protests  (loyalty -5)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Yorigami Inter-Planetary Industrial Enterprises",
+      "roll": 18,
+      "label": "Crime Crackdown",
+      "description": "Yorigami Inter-Planetary Industrial Enterprises / Yorigami Prime: Crime Crackdown  crime_rate-9.2",
+      "col_rgb": [
+        0,
+        190,
+        214
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Yorigami Inter-Planetary Industrial Enterprises",
+      "roll": 18,
+      "label": "Rich Vein",
+      "description": "Yorigami Inter-Planetary Industrial Enterprises: Energy - Rich Vein  (+25%)",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Imperium Poenus Lunaria",
+      "roll": 6,
+      "label": "Protests",
+      "description": "Imperium Poenus Lunaria: Protests  (loyalty -4)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Imperium Poenus Lunaria",
+      "roll": 14,
+      "label": "Stable",
+      "description": "Imperium Poenus Lunaria / Imperium Prime: Stable",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Imperium Poenus Lunaria",
+      "roll": 20,
+      "label": "Motherlode",
+      "description": "Imperium Poenus Lunaria: Food - Motherlode  (+44%)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Union of the Red Horizon",
+      "roll": 9,
+      "label": "Civic Stability",
+      "description": "Union of the Red Horizon: Civic Stability",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Union of the Red Horizon",
+      "roll": 20,
+      "label": "Golden Age",
+      "description": "Union of the Red Horizon / Union of Prime: Golden Age  unrest-10.5  crime_rate-6.6",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Union of the Red Horizon",
+      "roll": 2,
+      "label": "Resource Depletion",
+      "description": "Union of the Red Horizon: Food - Resource Depletion  (-26%)",
+      "col_rgb": [
+        216,
+        54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 14,
+      "label": "Civic Stability",
+      "description": "Divine Theocratic State of Giphairilia: Civic Stability",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 15,
+      "label": "Pop Boom",
+      "description": "Divine Theocratic State of Giphairilia / Giphairilia: Pop Boom",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 17,
+      "label": "Rich Vein",
+      "description": "Divine Theocratic State of Giphairilia: Consumer Goods - Rich Vein  (+11%)",
+      "col_rgb": [
+        22,
+        184,
+        82
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 9,
+      "label": "Civic Stability",
+      "description": "Divine Theocratic State of Giphairilia: Civic Stability",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 9,
+      "label": "Stable",
+      "description": "Divine Theocratic State of Giphairilia / Giphairilia: Stable",
+      "col_rgb": [
+        84,
+        114,
+        136
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Divine Theocratic State of Giphairilia",
+      "roll": 2,
+      "label": "Resource Depletion",
+      "description": "Divine Theocratic State of Giphairilia: Alloys - Resource Depletion  (-26%)",
+      "col_rgb": [
+        216,
+        54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Trade Confederation",
+      "roll": 6,
+      "label": "Protests",
+      "description": "Trade Confederation: Protests  (loyalty -2)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Trade Confederation",
+      "roll": 18,
+      "label": "Crime Crackdown",
+      "description": "Trade Confederation / Dominum Aetheris: Crime Crackdown  crime_rate-6.8",
+      "col_rgb": [
+        0,
+        190,
+        214
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Trade Confederation",
+      "roll": 19,
+      "label": "Motherlode",
+      "description": "Trade Confederation: Energy - Motherlode  (+29%)",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Civic",
+      "nation": "Trade Confederation",
+      "roll": 2,
+      "label": "Mass Exodus",
+      "description": "Trade Confederation: Mass Exodus  (loyalty -18)",
+      "col_rgb": [
+        216,
+        54,
+        40
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Planetside",
+      "nation": "Trade Confederation",
+      "roll": 5,
+      "label": "Minor Unrest",
+      "description": "Trade Confederation / Dominum Aetheris: Minor Unrest  unrest+13.5",
+      "col_rgb": [
+        198,
+        150,
+        22
+      ]
+    },
+    {
+      "turn": 5,
+      "year": 2201,
+      "quarter": 1,
+      "type": "Resource",
+      "nation": "Trade Confederation",
+      "roll": 12,
+      "label": "Normal Output",
+      "description": "Trade Confederation: Alloys - Normal Output",
       "col_rgb": [
         84,
         114,

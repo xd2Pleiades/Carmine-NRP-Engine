@@ -1,0 +1,185 @@
+-# [YIIE] YORIGAMI INTER-PLANETARY INDUSTRIAL ENTERPRISES
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Human (Dominant), Igyokkyan (Minority), Ranshoukzo (Minority)
+  Population       : 15.225B
+  Pop Growth       : +1.50% / yr
+  Homeworld        : Yorigami Prime
+  Civilisation     : Interplanetary Industrial
+  Tier             : 2
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 800.000 Bcr
+  IPEU Growth      : +2.50% / yr
+  IPEU per Capita  : 52 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+  Total Expenditure: 760.000 Bcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 40.000 Bcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                30.0%  ████████████████████  240.000 Bcr
+  Infrastructure          30.0%  ████████████████████  240.000 Bcr
+  Industry                10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Agriculture             10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Population Development  10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Others                   5.0%  ███░░░░░░░░░░░░░░░░░  40.000 Bcr
+  ─────────────────────────────────────────────────────────────
+  TOTAL                   95.0%                        (760.000 Bcr)
+```
+## ECONOMIC PROJECTS
+```
+  None
+```
+## FISCAL REPORT
+```
+  Debtor/ Creditor     : Creditor
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0%
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Strategic Fund   : 🟢 160.000 Bcr
+  Fund dt this turn: +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 3219.100B
+  Food Production per turn  : 80.00K
+  Food Consumption per turn : 150.000M
+  Food Net per turn         : -149.920M
+  Food Trend                : ▼
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 2.000M
+  Minerals Consumption per turn : 800.00K
+  Minerals Net per turn         : +1.200M
+  Minerals Trend                : ▲
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 160.00K
+  Energy Consumption per turn : 96.00K
+  Energy Net per turn         : +64.00K
+  Energy Trend                : ▲
+```
+```
+  Alloys Stockpile            : 2.20K
+  Alloys Production per turn  : 0.00
+  Alloys Consumption per turn : 0.00
+  Alloys Net per turn         : +0.00
+  Alloys Trend                : ─
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 32.00K
+  Consumer Goods Consumption per turn : 75.000M
+  Consumer Goods Net per turn         : -74.968M
+  Consumer Goods Trend                : ▼
+```
+# TERRITORIES
+Home System: Yorigami System
+```
+  Homeworld: Yorigami Prime
+    Population    : 2.760B
+    Settlements   : 3
+      - Yorigami Prime Alpha
+        [Urban] x1
+        [Power] x1
+        [Industrial Civilian] x1
+      - Yorigami Prime Beta
+        [Residential] x2
+        [Mining] x1
+        [Industrial Military] x1
+        [Agricultural] x1
+        [Military] x1
+      - Yorigami Prime Gamma
+        [Mining] x1
+        [Power] x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 15.225B
+  Loyalty Modifier     : 0.00
+```
+**Human**  👑 Dominant
+```
+  Population       : 10.500B
+  Share            : 69.0% - Dominant
+  Growth Rate      : +1.50% / yr
+  Culture          : Naikkon
+  Language         : Naihongou
+  Religion         : Shintoism
+  Loyalty          : 🟢 80/100
+  Happiness        : N/A
+```
+**Igyokkyan**  👥 Minority
+```
+  Population       : 3.000B
+  Share            : 19.7% - Minority
+  Growth Rate      : +3.00% / yr
+  Culture          : Aynou
+  Language         : Fukuaynou
+  Religion         : Animism
+  Loyalty          : 🟡 60/100
+  Happiness        : N/A
+```
+**Ranshoukzo**  👥 Minority
+```
+  Population       : 1.500B
+  Share            : 9.9% - Minority
+  Growth Rate      : +1.50% / yr
+  Culture          : Hagorumou
+  Language         : Abehagoruma
+  Religion         : Orthodox Christianity
+  Loyalty          : 🟡 50/100
+  Happiness        : N/A
+```
+# MILITARY
+## SPACEFLEET
+```
+    - Battlecruiser | x1 | Green | 0 cr maint
+    - Heavy Cruiser | x2 | Green | 0 cr maint
+    - Destroyer | x4 | Green | 0 cr maint
+    - Frigate | x6 | Green | 0 cr maint
+    - Corvette | x8 | Green | 0 cr maint
+    - Transport Vessel | x4 | Green | 0 cr maint
+    - Space patrol Vessels | x6 | Green | 0 cr maint
+```
+## AEROSPACE FORCES
+```
+    - Fighter Aircraft | x300 | Green | 0 cr maint
+    - Attack Aircraf | x200 | Green | 0 cr maint
+    - Strategic Bomber | x100 | Green | 0 cr maint
+```
+## GROUND FORCES
+```
+    - Infantry Division | x4 | Green | 0 cr maint
+    - Mechanized Division | x2 | Green | 0 cr maint
+    - Marine Division | x1 | Green | 0 cr maint
+```
+# RESEARCH
+```
+  RP per turn      : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Active Projects:
+    None
+  Completed Projects:
+    v Industrial
+    v Agricultural
+    v Magitech-Dev
+```
+# EVENTS - T5 Q1 [2201]
+```
+  [Civic     ] d20: 8  Protests              Yorigami Inter-Planetary Industrial Enterprises: Protests  (loyalty -5)
+  [Planetside] d20:18  Crime Crackdown       Yorigami Inter-Planetary Industrial Enterprises / Yorigami Prime: Crime Crackdown  crime_rate-9.2
+  [Resource  ] d20:18  Rich Vein             Yorigami Inter-Planetary Industrial Enterprises: Energy - Rich Vein  (+25%)
+```

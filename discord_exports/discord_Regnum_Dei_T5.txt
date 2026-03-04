@@ -1,0 +1,173 @@
+-# [RD] REGNUM DEI
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Human (Dominant), Others (Minority)
+  Population       : 1.025B
+  Pop Growth       : +2.50% / yr
+  Homeworld        : Eden
+  Civilisation     : Interplanetary Industrial
+  Tier             : 2
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 10.000 Tcr
+  IPEU Growth      : +4.50% / yr
+  IPEU per Capita  : 9,756 cr
+  Trade Revenue    : 19.177 Tcr
+   - Exports       : 19.177 Tcr
+   - Imports       : 0 cr
+  Total Expenditure: 10.000 Tcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 19.098 Tcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                10.0%  ███████░░░░░░░░░░░░░  1.000 Tcr
+  Agriculture             10.0%  ███████░░░░░░░░░░░░░  1.000 Tcr
+  Industry                30.0%  ████████████████████  3.000 Tcr
+  Population Development  19.0%  █████████████░░░░░░░  1.900 Tcr
+  Others                   1.0%  █░░░░░░░░░░░░░░░░░░░  100.000 Bcr
+  Infrastructure          30.0%  ████████████████████  3.000 Tcr
+  ─────────────────────────────────────────────────────────────
+  TOTAL                  100.0%                        (10.000 Tcr)
+```
+## ECONOMIC PROJECTS
+```
+  Paradise Power & Roads (Infrastructure)  [COMPLETE]
+  Consumer Goods Factories (Industry)  [COMPLETE]
+  Alloy Refineries (Industry)  [COMPLETE]
+```
+## FISCAL REPORT
+```
+  Debtor/ Creditor     : Debtor
+  Debt Balance         : 6.306 Tcr
+  Debt Load            : 63.1%
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 78.821 Bcr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Strategic Fund   : 🟢 76.398 Tcr
+  Fund dt this turn: -78.821 Bcr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 40045.500B
+  Food Production per turn  : 1.000M
+  Food Consumption per turn : 10.000M
+  Food Net per turn         : -9.000M
+  Food Trend                : ▼
+```
+```
+  Minerals Stockpile            : 10112.600B
+  Minerals Production per turn  : 75.000M
+  Minerals Consumption per turn : 30.000M
+  Minerals Net per turn         : +45.000M
+  Minerals Trend                : ▲
+```
+```
+  Energy Stockpile            : 30337.500B
+  Energy Production per turn  : 6.000M
+  Energy Consumption per turn : 3.600M
+  Energy Net per turn         : +2.400M
+  Energy Trend                : ▲
+```
+```
+  Alloys Stockpile            : 42985.225B
+  Alloys Production per turn  : 1.500M
+  Alloys Consumption per turn : 450.00K
+  Alloys Net per turn         : +1.050M
+  Alloys Trend                : ▲
+```
+```
+  Consumer Goods Stockpile            : 2000.000B
+  Consumer Goods Production per turn  : 1.200M
+  Consumer Goods Consumption per turn : 5.000M
+  Consumer Goods Net per turn         : -3.800M
+  Consumer Goods Trend                : ▼
+```
+# TERRITORIES
+Home System: Regnum D System
+```
+  Homeworld: Eden
+    Population    : 249.200M
+    Settlements   : 2
+      - Eden Alpha
+        [Urban] x2
+        [Industrial Civilian] x1
+        [Mining] x1
+      - Eden Beta
+        [Urban] x1
+        [Power] x1
+        [Military] x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 1.025B
+  Loyalty Modifier     : 0.00
+```
+**Human**  👑 Dominant
+```
+  Population       : 1.000B
+  Share            : 97.6% - Dominant
+  Growth Rate      : +2.50% / yr
+  Culture          : American, Spanish, Latin American, African, Levantine, European, Filipino, Oceanian
+  Language         : Latin, English, Spanish
+  Religion         : Catholic Christianity, Protestantism and related Christian sects
+  Loyalty          : 🟢 79/100
+  Happiness        : N/A
+```
+**Others**  👥 Minority
+```
+  Population       : 1.800M
+  Share            : 0.2% - Minority
+  Growth Rate      : +0.50% / yr
+  Culture          : Alien
+  Language         : Alien Common
+  Religion         : Rephos
+  Loyalty          : 🟡 69/100
+  Happiness        : N/A
+```
+# MILITARY
+## SPACEFLEET
+```
+    - Light Cruiser | x1 | Green | 0 cr maint
+    - Destroyer | x2 | Green | 0 cr maint
+    - Frigate | x6 | Green | 0 cr maint
+    - Corvette | x12 | Green | 0 cr maint
+    - Dockyard | x2 | Green | 0 cr maint
+    - Shipyard Tender | x2 | Green | 0 cr maint
+    - Space patrol Vessels | x46 | Green | 0 cr maint
+```
+## AEROSPACE FORCES
+```
+    - Strategic Bombers | x50 | Green | 0 cr maint
+    - Fighter Aircrafts | x200 | Green | 0 cr maint
+```
+## GROUND FORCES
+```
+    - Infantry Division | x10 | Green | 0 cr maint
+  Swiss Guards
+    - Swiss Guards | x1 | Green | 0 cr maint
+```
+# RESEARCH
+```
+  RP per turn      : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Active Projects:
+    None
+  Completed Projects:
+    v Resource Extraction
+    v Energy Generation
+    v Spacefleet Engineering
+```
+# EVENTS - T5 Q1 [2201]
+```
+  [Civic     ] d20: 2  Mass Exodus           Regnum Dei: Mass Exodus  (loyalty -17)
+  [Planetside] d20: 6  Minor Unrest          Regnum Dei / Eden: Minor Unrest  unrest+10.9
+  [Resource  ] d20:18  Rich Vein             Regnum Dei: Minerals - Rich Vein  (+21%)
+  [Civic     ] d20: 6  Protests              Regnum Dei: Protests  (loyalty -4)
+  [Planetside] d20:15  Pop Boom              Regnum Dei / Eden: Pop Boom
+  [Resource  ] d20: 6  Normal Output         Regnum Dei: Food - Normal Output
+```

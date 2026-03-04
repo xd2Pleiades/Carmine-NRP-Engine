@@ -1,0 +1,199 @@
+-# [UOTR] UNION OF THE RED HORIZON
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Human (Dominant), Enhanced Humanoid (Minority), Human (C) (Minority), Human (M) (Minority)
+  Population       : 29.002B
+  Pop Growth       : +3.58% / yr
+  Homeworld        : Union of Prime
+  Civilisation     : Interplanetary Industrial
+  Tier             : 2
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 7.320 Tcr
+  IPEU Growth      : +2.50% / yr
+  IPEU per Capita  : 252 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+  Total Expenditure: 6.295 Tcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 1.025 Tcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                30.0%  ████████████████████  2.196 Tcr
+  Infrastructure          25.0%  █████████████████░░░  1.830 Tcr
+  Industry                10.0%  ███████░░░░░░░░░░░░░  732.000 Bcr
+  Agriculture             10.0%  ███████░░░░░░░░░░░░░  732.000 Bcr
+  Population Development  10.0%  ███████░░░░░░░░░░░░░  732.000 Bcr
+  Others                   1.0%  █░░░░░░░░░░░░░░░░░░░  73.200 Bcr
+  ─────────────────────────────────────────────────────────────
+  TOTAL                   86.0%                        (6.295 Tcr)
+```
+## ECONOMIC PROJECTS
+```
+  None
+```
+## FISCAL REPORT
+```
+  Debtor/ Creditor     : Creditor
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0%
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Strategic Fund   : 🟢 4.099 Tcr
+  Fund dt this turn: +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 29458.990B
+  Food Production per turn  : 732.00K
+  Food Consumption per turn : 280.000M
+  Food Net per turn         : -279.268M
+  Food Trend                : ▼
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 18.300M
+  Minerals Consumption per turn : 7.320M
+  Minerals Net per turn         : +10.980M
+  Minerals Trend                : ▲
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 1.464M
+  Energy Consumption per turn : 878.40K
+  Energy Net per turn         : +585.60K
+  Energy Trend                : ▲
+```
+```
+  Alloys Stockpile            : 2.20K
+  Alloys Production per turn  : 0.00
+  Alloys Consumption per turn : 0.00
+  Alloys Net per turn         : +0.00
+  Alloys Trend                : ─
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 292.80K
+  Consumer Goods Consumption per turn : 140.000M
+  Consumer Goods Net per turn         : -139.707M
+  Consumer Goods Trend                : ▼
+```
+# TERRITORIES
+Home System: Union of System
+```
+  Homeworld: Union of Prime
+    Population    : 680.400M
+    Settlements   : 1
+      - Union of Prime Alpha
+        [Agricultural] x1
+        [Mining] x2
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 29.002B
+  Loyalty Modifier     : 0.00
+```
+**Human**  👑 Dominant
+```
+  Population       : 22.900B
+  Share            : 79.0% - Dominant
+  Growth Rate      : +4.00% / yr
+  Culture          : Germanic/Nordic/Russo
+  Language         : German/English/Russian
+  Religion         : State Atheism
+  Loyalty          : 🟢 100/100
+  Happiness        : N/A
+```
+**Enhanced Humanoid**  👥 Minority
+```
+  Population       : 3.920B
+  Share            : 13.5% - Minority
+  Growth Rate      : +1.00% / yr
+  Culture          : Germanic/Nordic/Russo
+  Language         : German/English/Russian
+  Religion         : State Atheism
+  Loyalty          : 🟢 100/100
+  Happiness        : N/A
+```
+**Human (C)**  👥 Minority
+```
+  Population       : 610.000M
+  Share            : 2.1% - Minority
+  Growth Rate      : +4.00% / yr
+  Culture          : Germanic/Nordic/Russo
+  Language         : German/English/Russian
+  Religion         : Illegal Christian
+  Loyalty          : 🟡 45/100
+  Happiness        : N/A
+```
+**Human (M)**  👥 Minority
+```
+  Population       : 570.000M
+  Share            : 2.0% - Minority
+  Growth Rate      : +4.00% / yr
+  Culture          : Germanic/Nordic/Russo
+  Language         : German/English/Russian
+  Religion         : Illegal Muslim
+  Loyalty          : 🔴 30/100
+  Happiness        : N/A
+```
+# MILITARY
+## SPACEFLEET
+```
+    - Dreadnaughts | x2 | Green | 0 cr maint
+    - Heavy Cruiser | x6 | Green | 0 cr maint
+    - Destroyer | x10 | Green | 0 cr maint
+    - Frigate | x16 | Green | 0 cr maint
+    - Corvette | x20 | Green | 0 cr maint
+    - Space patrol Vessels | x21 | Green | 0 cr maint
+    - Transport Vessel | x8 | Green | 0 cr maint
+    - Dockyard | x1 | Green | 0 cr maint
+    - Shipyard Tender | x1 | Green | 0 cr maint
+```
+## AEROSPACE FORCES
+```
+    - Fighter Aircrafts | x8500 | Green | 0 cr maint
+    - Attack Aircraft | x6000 | Green | 0 cr maint
+    - Tactical Bombers | x1500 | Green | 0 cr maint
+    - Strategic Bombers | x500 | Green | 0 cr maint
+    - Reconnaissance & Surveillance Aircraft | x100 | Green | 0 cr maint
+    - Fighter Aircraft | x2000 | Green | 0 cr maint
+    - Attack Aircraf | x800 | Green | 0 cr maint
+    - Tactical Bomber | x400 | Green | 0 cr maint
+    - Strategic Bomber | x200 | Green | 0 cr maint
+    - Reconnaissance & Surveillance Aircraft | x50 | Green | 0 cr maint
+```
+## GROUND FORCES
+```
+    - Infantry Division | x120 | Green | 0 cr maint
+    - Mechanized Division | x30 | Green | 0 cr maint
+    - Motorized Division | x20 | Green | 0 cr maint
+    - Militia Division | x80 | Green | 0 cr maint
+    - Infantry Division | x16 | Green | 0 cr maint
+    - Motorized Division | x6 | Green | 0 cr maint
+    - Mechanized Division | x6 | Green | 0 cr maint
+```
+# RESEARCH
+```
+  RP per turn      : 0 cr
+  ─────────────────────────────────────────────────────────────
+  Active Projects:
+    None
+  Completed Projects:
+    v Macro-Scale Orbital Forges
+    v Bio-Synthetic Resilience Augmentation
+    v Kinetic Slingshot Arrays
+```
+# EVENTS - T5 Q1 [2201]
+```
+  [Civic     ] d20: 9  Civic Stability       Union of the Red Horizon: Civic Stability
+  [Planetside] d20:20  Golden Age            Union of the Red Horizon / Union of Prime: Golden Age  unrest-10.5  crime_rate-6.6
+  [Resource  ] d20: 2  Resource Depletion    Union of the Red Horizon: Food - Resource Depletion  (-26%)
+```
