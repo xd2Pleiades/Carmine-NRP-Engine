@@ -74,21 +74,20 @@
   },
   "trade_routes": [
     {
-      "id": "TR0001",
       "name": "Lunaria to Tastronius",
       "exporter": "Imperium Poenus Lunaria",
       "importer": "Tastronius Kingdom",
       "resource": "Alloys",
-      "quantity_per_turn": 1439250000000.0,
       "credits_per_turn": 17990625000000.0,
-      "duration_turns": -1,
+      "pirate_distance": "too far",
+      "pirate_escort": 40,
+      "route_modifier": 0.0,
       "status": "active",
       "transit_nations": [],
-      "created_turn": 1,
-      "pirate_distance": "too far",
-      "pirate_escort": "40",
+      "id": "TR0001",
       "pirate_incidents": 1,
-      "total_pirated": 4497656250000.0
+      "total_pirated": 4497656250000.0,
+      "_piracy_loss_this_turn": 0.0
     },
     {
       "id": "TR0002",
@@ -7955,127 +7954,6 @@
               "devastation": 9.0,
               "crime_rate": 11.6,
               "unrest": 1.9,
-              "platforms": []
-            },
-            {
-              "name": "Imperium System Beta",
-              "type": "Ocean",
-              "size": "Large",
-              "climate": "Desert",
-              "habitability": 82.0,
-              "devastation": 12.3,
-              "crime_rate": 17.4,
-              "unrest": 15.0,
-              "pop_assigned": 7749000000,
-              "settlements": [
-                {
-                  "name": "Imperium System Beta Alpha",
-                  "population": 7749000000,
-                  "loyalty": 52.4,
-                  "amenities": 78.2,
-                  "districts": [
-                    {
-                      "type": "Urban",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Residential",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Mining",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Research Lab",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    }
-                  ]
-                }
-              ],
-              "platforms": []
-            },
-            {
-              "name": "Imperium System Gamma",
-              "type": "Toxic",
-              "size": "Large",
-              "climate": "Toxic",
-              "habitability": 70.2,
-              "devastation": 3.8,
-              "crime_rate": 2.8,
-              "unrest": 2.9,
-              "pop_assigned": 6633900000,
-              "settlements": [
-                {
-                  "name": "Imperium System Gamma Alpha",
-                  "population": 6633900000,
-                  "loyalty": 44.5,
-                  "amenities": 66.2,
-                  "districts": [
-                    {
-                      "type": "Industrial Military",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Urban",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Farming",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Military",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Mining",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    }
-                  ]
-                }
-              ],
               "platforms": []
             }
           ],
@@ -17701,7 +17579,8 @@
         "Bio-Synthetic Resilience Augmentation",
         "Kinetic Slingshot Arrays"
       ],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "PLANNED"
     },
     {
       "name": "Zenith Collective",
