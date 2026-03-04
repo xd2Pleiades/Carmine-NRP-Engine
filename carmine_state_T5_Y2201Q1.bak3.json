@@ -7358,7 +7358,8 @@
         "Agricultural",
         "Magitech-Dev"
       ],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "MARKET"
     },
     {
       "name": "Imperium Poenus Lunaria",
@@ -17700,7 +17701,8 @@
         "Bio-Synthetic Resilience Augmentation",
         "Kinetic Slingshot Arrays"
       ],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "PLANNED"
     },
     {
       "name": "Zenith Collective",
