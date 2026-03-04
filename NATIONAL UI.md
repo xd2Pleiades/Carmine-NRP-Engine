@@ -193,7 +193,7 @@ Ships/aircrafts have special properties such as speed, range, and combat capabil
 Ships/aircrafts can be stationed in space or on planets, while ground forces are stationed on planets or stationed aboard ships/aircrafts.
 Ground Forces that was picked up by ships/aircrafts can be deployed to planets or other locations, awhile the manpower amount may exceed, the remaining manpower will be left stranded and their fate will be determined by GM decision.
 
-# military_handler.py
+# military_handler.py (designing)
 Spacefleet, Aerospace Forces, and Ground Forces units have these properties:
 - Name
 - Type
