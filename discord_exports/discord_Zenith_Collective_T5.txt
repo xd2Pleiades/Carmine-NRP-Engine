@@ -1,0 +1,56 @@
+-# [ZC] ZENITH COLLECTIVE
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Genetically Modified Humans (Dominant), Sentient AI Entities (Minority)
+  Population       : 85.08K
+  Pop Growth       : +0.10% / yr
+  Homeworld        : Corven Reach
+  Economic Model   : COLONY_START
+  Status           : Stable
+```
+# COLONY VESSEL
+```
+  Pop Capacity     : 100.00K
+  Population       : 85.08K
+```
+## VESSEL STOCKPILES
+```
+  Food Stockpile  : 2.40K
+  Food Net/turn   : 100.00  ▲
+```
+```
+  Minerals Stockpile  : 1.30K
+  Minerals Net/turn   : 200.00  ▲
+```
+```
+  Alloys Stockpile  : 600.00
+  Alloys Net/turn   : 100.00  ▲
+```
+```
+  Energy Stockpile  : 700.00
+  Energy Net/turn   : 50.00  ▲
+```
+## COLONY PROGRESS
+```
+  Corven Reach (Taur Vesk)
+    Colonized : 0.0%  ░░░░░░░░░░░░░░░░░░
+    Explored  : 0.0%
+```
+# MILITARY
+## SPACEFLEET
+```
+  None on record
+```
+## AEROSPACE FORCES
+```
+    - Unmanned Aerial Vehicle | x1000 | Green
+```
+## GROUND FORCES
+```
+    - Mechanized Division | x1 | Green
+```
+## MANPOWER
+```
+  Pool       : 15.00K
+  Stored Pool: 15.00K
+```

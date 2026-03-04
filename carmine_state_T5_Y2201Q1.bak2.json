@@ -8022,37 +8022,37 @@
             },
             {
               "name": "Imperium System Gamma",
-              "type": "Desert",
-              "size": "Small",
-              "climate": "Jungle",
-              "habitability": 64.9,
-              "devastation": 11.8,
-              "crime_rate": 22.2,
-              "unrest": 17.3,
-              "pop_assigned": 1752300000,
+              "type": "Toxic",
+              "size": "Large",
+              "climate": "Toxic",
+              "habitability": 70.2,
+              "devastation": 3.8,
+              "crime_rate": 2.8,
+              "unrest": 2.9,
+              "pop_assigned": 6633900000,
               "settlements": [
                 {
                   "name": "Imperium System Gamma Alpha",
-                  "population": 1752300000,
-                  "loyalty": 51.7,
-                  "amenities": 41.6,
+                  "population": 6633900000,
+                  "loyalty": 44.5,
+                  "amenities": 66.2,
                   "districts": [
                     {
-                      "type": "Power",
+                      "type": "Industrial Military",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
                       "workforce": 0
                     },
                     {
-                      "type": "Agricultural",
+                      "type": "Urban",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
                       "workforce": 0
                     },
                     {
-                      "type": "Industrial Civilian",
+                      "type": "Farming",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
@@ -18003,7 +18003,8 @@
         "Biological Modifications",
         "Atmospheric Macro-Engineering"
       ],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "COLONY_START"
     }
   ],
   "events_log": [

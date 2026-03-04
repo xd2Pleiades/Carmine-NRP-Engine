@@ -8019,6 +8019,63 @@
                 }
               ],
               "platforms": []
+            },
+            {
+              "name": "Imperium System Gamma",
+              "type": "Toxic",
+              "size": "Large",
+              "climate": "Toxic",
+              "habitability": 70.2,
+              "devastation": 3.8,
+              "crime_rate": 2.8,
+              "unrest": 2.9,
+              "pop_assigned": 6633900000,
+              "settlements": [
+                {
+                  "name": "Imperium System Gamma Alpha",
+                  "population": 6633900000,
+                  "loyalty": 44.5,
+                  "amenities": 66.2,
+                  "districts": [
+                    {
+                      "type": "Industrial Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Urban",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
             }
           ],
           "orbital_structures": []

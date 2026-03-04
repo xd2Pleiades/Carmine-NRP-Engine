@@ -18003,7 +18003,8 @@
         "Biological Modifications",
         "Atmospheric Macro-Engineering"
       ],
-      "tech_licenses": []
+      "tech_licenses": [],
+      "economic_model": "COLONY_START"
     }
   ],
   "events_log": [

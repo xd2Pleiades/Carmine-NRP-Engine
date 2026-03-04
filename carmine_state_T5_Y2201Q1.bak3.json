@@ -8022,30 +8022,30 @@
             },
             {
               "name": "Imperium System Gamma",
-              "type": "Arid",
-              "size": "Tiny",
-              "climate": "Oceanic",
-              "habitability": 23.7,
-              "devastation": 14.1,
-              "crime_rate": 5.3,
-              "unrest": 11.9,
-              "pop_assigned": 319950000,
+              "type": "Toxic",
+              "size": "Large",
+              "climate": "Toxic",
+              "habitability": 70.2,
+              "devastation": 3.8,
+              "crime_rate": 2.8,
+              "unrest": 2.9,
+              "pop_assigned": 6633900000,
               "settlements": [
                 {
                   "name": "Imperium System Gamma Alpha",
-                  "population": 319950000,
-                  "loyalty": 66.3,
-                  "amenities": 47.9,
+                  "population": 6633900000,
+                  "loyalty": 44.5,
+                  "amenities": 66.2,
                   "districts": [
                     {
-                      "type": "Mining",
+                      "type": "Industrial Military",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
                       "workforce": 0
                     },
                     {
-                      "type": "Mining",
+                      "type": "Urban",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
@@ -8059,21 +8059,14 @@
                       "workforce": 0
                     },
                     {
-                      "type": "Power",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
-                      "type": "Industrial Civilian",
-                      "status": "Operational",
-                      "notes": "",
-                      "built_turn": 0,
-                      "workforce": 0
-                    },
-                    {
                       "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
                       "status": "Operational",
                       "notes": "",
                       "built_turn": 0,
