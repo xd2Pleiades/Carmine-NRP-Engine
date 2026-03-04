@@ -1,0 +1,90 @@
+-# [WF] WANDERING FLEET
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : N/A
+  Population       : 717.500M
+  Pop Growth       : +2.50% / yr
+  Homeworld        : N/A
+  Economic Model   : MIXED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 3.500 Tcr
+  IPEU Growth      : +5.00% / yr
+  IPEU per Capita  : 4,878 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+  Local Mkt Tax    : 2.406 Bcr
+  Total Expenditure: 3.010 Tcr
+  Net Balance      : 492.406 Bcr
+```
+## EXPENDITURE
+```
+  Military                30.0%  ████████████████████  1.050 Tcr
+  Infrastructure          25.0%  █████████████████░░░  875.000 Bcr
+  Industry                10.0%  ███████░░░░░░░░░░░░░  350.000 Bcr
+  Agriculture             10.0%  ███████░░░░░░░░░░░░░  350.000 Bcr
+  Population Development  10.0%  ███████░░░░░░░░░░░░░  350.000 Bcr
+  Others                   1.0%  █░░░░░░░░░░░░░░░░░░░  35.000 Bcr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile   : 14174.930B
+  Food Production  : 50.000M
+  Food Consumption : 700.00K
+  Food Net/turn    : +49.300M  ▲
+  Food Export Rev  : 0 cr
+```
+```
+  Minerals Stockpile   : 3.60K
+  Minerals Production  : 20.000M
+  Minerals Consumption : 33.000M
+  Minerals Net/turn    : -13.000M  ▼
+  Minerals Export Rev  : 0 cr
+```
+```
+  Energy Stockpile   : 2.00K
+  Energy Production  : 25.000M
+  Energy Consumption : 26.140M
+  Energy Net/turn    : -1.140M  ▼
+  Energy Export Rev  : 0 cr
+```
+```
+  Alloys Stockpile   : 2.20K
+  Alloys Production  : 26.000M
+  Alloys Consumption : 0.00
+  Alloys Net/turn    : +26.000M  ▲
+  Alloys Export Rev  : 0 cr
+```
+```
+  Consumer Goods Stockpile   : 2.20K
+  Consumer Goods Production  : 12.000M
+  Consumer Goods Consumption : 350.00K
+  Consumer Goods Net/turn    : +11.650M  ▲
+  Consumer Goods Export Rev  : 0 cr
+```
+## MILITARY CONSUMPTION
+```
+  Food   : 0.00 / turn
+  Alloys : 0.00 / turn
+```
+# MILITARY
+## SPACEFLEET
+```
+  None on record
+```
+## AEROSPACE FORCES
+```
+  None on record
+```
+## GROUND FORCES
+```
+  None on record
+```
+## MANPOWER
+```
+  Pool       : 0
+  Stored Pool: 1.400M
+```

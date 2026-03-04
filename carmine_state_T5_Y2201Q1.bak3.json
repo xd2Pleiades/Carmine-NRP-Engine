@@ -8019,6 +8019,70 @@
                 }
               ],
               "platforms": []
+            },
+            {
+              "name": "Imperium System Gamma",
+              "type": "Arid",
+              "size": "Tiny",
+              "climate": "Oceanic",
+              "habitability": 23.7,
+              "devastation": 14.1,
+              "crime_rate": 5.3,
+              "unrest": 11.9,
+              "pop_assigned": 319950000,
+              "settlements": [
+                {
+                  "name": "Imperium System Gamma Alpha",
+                  "population": 319950000,
+                  "loyalty": 66.3,
+                  "amenities": 47.9,
+                  "districts": [
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Mining",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Farming",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Power",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Industrial Civilian",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    },
+                    {
+                      "type": "Military",
+                      "status": "Operational",
+                      "notes": "",
+                      "built_turn": 0,
+                      "workforce": 0
+                    }
+                  ]
+                }
+              ],
+              "platforms": []
             }
           ],
           "orbital_structures": []
