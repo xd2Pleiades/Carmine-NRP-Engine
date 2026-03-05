@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Carmine NRP Engine - vAlpha0.6.0
-New in 0.6: economic model selector, construction menu, military consumption,
-            church tithe, manpower/conscription, colony start UI overhaul,
-            GM console (~), fixed eco model mechanics.
+Carmine NRP Engine - vAlpha0.6.6
+New in 0.6.3: monetary loop fix (trade net credited to strategic_fund each turn),
+              route_modifier applied, export_by_resource fix, discord tithe_in,
+              compute_resource_export_credits uses net-of-piracy value
 """
 import sys, os, json, shutil, math, time, random
 import pygame
@@ -22,6 +22,7 @@ MAIN_X = LWIDTH; MAIN_Y = TBAR_H + TABBAR_H
 MAIN_W = SW - LWIDTH; MAIN_H = SH - TBAR_H - TABBAR_H - SBAR_H
 TABS         = ["OVERVIEW","ECONOMY","MILITARY","TERRITORY","MARKET","GALACTIC","EVENTS"]
 TABS_COLONY  = ["OVERVIEW","COLONY","MILITARY","TERRITORY","MARKET","GALACTIC","EVENTS"]
+TABS_CORP    = ["OVERVIEW","ECONOMY","MILITARY","TERRITORY","MARKET","GALACTIC","CORP","EVENTS"]
 
 BG=(8,12,20);PANEL=(12,18,28);BORDER=(28,52,80);BORDER2=(44,86,128);ACCENT=(190,38,25)
 CYAN=(0,190,214);TEAL=(0,138,158);TEXT=(198,226,246);DIM=(84,114,136);DIM2=(50,72,92)
@@ -144,7 +145,40 @@ def _avg_loyalty(nation):
 
 def is_colony(nation): return bool(nation.get("is_colony_start"))
 
-def get_tabs(nation): return TABS_COLONY if is_colony(nation) else TABS
+def get_tabs(nation):
+    if is_colony(nation): return TABS_COLONY
+    if nation.get("is_megacorp") or "corporate_data" in nation: return TABS_CORP
+    return TABS
+
+# ── unit builder tables ──────────────────────────────────────────────────────
+_UNIT_CATS=["Spacefleet","Aerospace","Ground Forces"]
+# Normalise JSON category aliases to canonical _UNIT_CATS values
+_CAT_NORM={"Navy":"Spacefleet","Spacefleet":"Spacefleet",
+           "Air Force":"Aerospace","Aerospace":"Aerospace",
+           "Ground Forces":"Ground Forces","Ground":"Ground Forces","Army":"Ground Forces"}
+_UNIT_TYPES_BY_CAT={
+    "Spacefleet":["Corvette","Frigate","Destroyer","Light Cruiser","Cruiser","Heavy Cruiser",
+                  "Battlecruiser","Battleship","Dreadnaught","Siegebreaker","Transport Vessel",
+                  "Shipyard Tender","Space patrol Vessels"],
+    "Aerospace":["Fighter Aircraft","Tactical Bomber","Strategic Bomber","Attack Aircraft",
+                 "Reconnaissance & Surveillance Aircraft","Unmanned Aerial Vehicle",
+                 "Tanker Aircraft","Gunship","Transport Aircraft"],
+    "Ground Forces":["Infantry Division","Armored Division","Artillery Division",
+                     "Marines Division","Special Forces Division"],
+}
+_UNIT_VETERANCY=["Green","Regular","Veteran","Elite","Legendary"]
+
+# ── corporate income ──────────────────────────────────────────────────────────
+def compute_corp_income(nation):
+    """Returns total corporate income per turn (megacorp nations only)."""
+    cd=nation.get("corporate_data",{})
+    trust=cd.get("trust",0.5); ipeu=nation.get("base_ipeu",0.0)
+    product_pct=cd.get("product_sale_pct",0.0)
+    service_pct=cd.get("service_income_pct",0.0)
+    offices=int(cd.get("offices",0)); stores=int(cd.get("stores",0))
+    base=ipeu*(product_pct+service_pct)*trust
+    off_inc=offices*1e9*trust; store_inc=stores*5e8*trust
+    return base+off_inc+store_inc
 
 # ── military consumption ──────────────────────────────────────────────────────
 def compute_military_consumption(nation):
@@ -217,6 +251,11 @@ def apply_tithes(state):
     if total_tithe>0:
         rd["strategic_fund"]=rd.get("strategic_fund",0.0)+total_tithe
     return events
+def compute_tithe_income(nation, state):
+    """Returns total tithe credits this nation RECEIVES (non-zero only for Regnum Dei)."""
+    if nation["name"] != "Regnum Dei": return 0.0
+    return sum(compute_church_tithe(n, state) for n in state.get("nations",[]) if n["name"] != "Regnum Dei")
+
 
 # ── district resources ────────────────────────────────────────────────────────
 def compute_district_resources(nation):
@@ -327,7 +366,13 @@ def compute_resource_export_credits(nation,state):
     for route in state.get("trade_routes",[]):
         if route.get("status")!="active" or route.get("exporter")!=name: continue
         r=route.get("resource","")
-        if r in ec: ec[r]+=route.get("credits_per_turn",0.0)
+        # use net-of-piracy, net-of-transit-tax value (mirrors compute_trade exporter earnings)
+        if r not in ec: continue
+        cr=route.get("credits_per_turn",0.0)*(1.0+route.get("route_modifier",0.0))
+        loss=route.get("_piracy_loss_this_turn",0.0); net_cr=cr-loss
+        ts=route.get("transit_nations",[])
+        tax=sum(cr*t.get("tax_rate",0.0) for t in ts if t.get("status")=="active")
+        ec[r]+=net_cr-tax
     return ec
 
 def compute_planet_local_market(nation,state,ipeu):
@@ -377,12 +422,13 @@ def compute_trade(nation,routes):
     name=nation["name"]; exports=imports=transit=0.0; ed={r:0.0 for r in _RESOURCES}
     for r in routes:
         if r.get("status")!="active": continue
-        cr=r.get("credits_per_turn",0.0); loss=r.get("_piracy_loss_this_turn",0.0); net_cr=cr-loss
+        cr=r.get("credits_per_turn",0.0)*(1.0+r.get("route_modifier",0.0))  # apply route modifier
+        loss=r.get("_piracy_loss_this_turn",0.0); net_cr=cr-loss
         ts=r.get("transit_nations",[])
         if r["exporter"]==name:
             tax=sum(cr*t.get("tax_rate",0.0) for t in ts if t.get("status")=="active")
-            exports+=net_cr-tax; res=r.get("resource","")
-            if res in ed: ed[res]+=net_cr
+            earns=net_cr-tax; exports+=earns; res=r.get("resource","")
+            if res in ed: ed[res]+=earns  # track actual post-tax, post-piracy earnings
         if r["importer"]==name: imports+=net_cr
         for t in ts:
             if t.get("nation")==name and t.get("status")=="active": transit+=cr*t.get("tax_rate",0.0)
@@ -618,7 +664,33 @@ def advance_turns(sm,n_turns):
                 nation["resource_stockpiles"]=sp
                 compute_species_loyalty_happiness(nation,res)
                 _,tax=compute_planet_local_market(nation,sm.state,ipeu2)
-                nation["strategic_fund"]=nation.get("strategic_fund",0.0)+tax
+                trade_flow=compute_trade(nation,sm.state.get("trade_routes",[]))
+                corp_inc=compute_corp_income(nation) if (nation.get("is_megacorp") or "corporate_data" in nation) else 0.0
+                nation["strategic_fund"]=nation.get("strategic_fund",0.0)+tax+trade_flow["net"]+corp_inc
+                # tick economic projects
+                eproj=nation.get("economic_projects") or []
+                still_ep=[]
+                for ep in eproj:
+                    if ep.get("status")!="active": still_ep.append(ep); continue
+                    cost=ep.get("cost_per_turn",0.0)
+                    nation["strategic_fund"]=nation.get("strategic_fund",0.0)-cost
+                    ef=ep.get("effect_field","none"); ev2=ep.get("effect_value",0.0)
+                    # Apply effect once on first tick (when _applied not yet set)
+                    if ef and ef!="none" and not ep.get("_applied"):
+                        nation[ef]=nation.get(ef,0.0)+ev2
+                        ep["_applied"]=True
+                    ep["turns_remaining"]=ep.get("turns_remaining",1)-1
+                    if ep["turns_remaining"]>0:
+                        still_ep.append(ep)
+                    else:
+                        # Reverse the effect on completion
+                        if ef and ef!="none" and ep.get("_applied"):
+                            nation[ef]=nation.get(ef,0.0)-ev2
+                        ep["status"]="completed"; still_ep.append(ep)
+                        all_evs.append({"turn":t,"year":y,"quarter":q,"type":"Project",
+                            "nation":nation["name"],"roll":"—","label":"Project Complete",
+                            "description":f"{ep.get('name','?')} completed","col_rgb":list(GOLD)})
+                nation["economic_projects"]=still_ep
                 all_evs.extend(advance_construction(nation,sm.state))
                 all_evs.extend(roll_civic_events(nation,sm.state))
                 all_evs.extend(roll_planetside_events(nation,sm.state))
@@ -627,6 +699,8 @@ def advance_turns(sm,n_turns):
             nation["manpower_pool"]=compute_manpower(nation)
     sm.state.setdefault("events_log",[]).extend(all_evs)
     sm.mark_dirty(); sm.save()
+    t2=sm.state.get("turn",1); y2=sm.state.get("year",2200); q2=sm.state.get("quarter",1)
+    sm.save_history(t2,y2,q2,sm.state)
     return all_evs
 
 # ── territory tools ───────────────────────────────────────────────────────────
@@ -696,6 +770,26 @@ class StateManager:
         if target.exists():
             try: target.rename(bp(1))
             except: pass
+    def save_history(self, turn, year, quarter, state):
+        """Append a turn snapshot to carmine_history.json."""
+        hpath = self.filepath.parent / "carmine_history.json"
+        try:
+            hist = json.loads(hpath.read_text()) if hpath.exists() else {"turns": []}
+        except:
+            hist = {"turns": []}
+        market = state.get("market", {})
+        snap = {
+            "turn": turn, "year": year, "quarter": quarter,
+            "market_prices": {k: round(v, 4) for k, v in market.get("market_modifier", {}).items()},
+            "nations": {n["name"]: {
+                "ipeu": round(n.get("base_ipeu", 0.0), 2),
+                "population": round(n.get("population", 0.0), 0),
+                "strategic_fund": round(n.get("strategic_fund", 0.0), 2),
+            } for n in state.get("nations", [])}
+        }
+        hist["turns"].append(snap)
+        try: hpath.write_text(json.dumps(hist, indent=2))
+        except Exception as e: print(f"[HISTORY] {e}")
     def nation_names(self): return [n["name"] for n in self.state.get("nations",[])]
     def get_nation(self,name):
         for n in self.state.get("nations",[]):
@@ -833,7 +927,8 @@ def _discord_export(nation,state):
         eff=spending_effects(nation,ipeu)
         total_exp=sum(exp.values())*ipeu+rb
         tithe=compute_church_tithe(nation,state)
-        net_bal=ipeu+trade["net"]+tax_inc-total_exp-debt["q_interest"]-tithe
+        tithe_in=compute_tithe_income(nation,state)
+        net_bal=ipeu+trade["net"]+tax_inc+tithe_in-total_exp-debt["q_interest"]-tithe
         per_cap=int(ipeu/pop) if pop else 0
         mil_cons=compute_military_consumption(nation)
         A("# ECONOMY"); A("```")
@@ -844,6 +939,7 @@ def _discord_export(nation,state):
         A(f"   - Exports       : {fmt_cr(trade['exports'])}")
         A(f"   - Imports       : {fmt_cr(trade['imports'])}")
         A(f"  Local Mkt Tax    : {fmt_cr(tax_inc)}")
+        if tithe_in>0: A(f"  Tithe Income     : +{fmt_cr(tithe_in)}")
         if tithe>0: A(f"  Church Tithe     : -{fmt_cr(tithe)}")
         A(f"  Total Expenditure: {fmt_cr(total_exp)}")
         A(f"  Net Balance      : {fmt_cr(net_bal)}"); A("```")
@@ -1119,16 +1215,18 @@ def build_rows(nation,state,tab,collapsed_keys=None):
         planet_markets,tax_inc=compute_planet_local_market(nation,state,ipeu)
         eff=spending_effects(nation,ipeu)
         tithe=compute_church_tithe(nation,state)
+        tithe_in=compute_tithe_income(nation,state)
         total_exp=sum(exp.values())*ipeu+rb
-        net_bal=ipeu+trade_net-total_exp-debt["q_interest"]-tithe
         trade_data=compute_trade(nation,state.get("trade_routes",[]))
         trade_net=trade_data["net"]
-        net_bal=ipeu+trade_net+tax_inc-total_exp-debt["q_interest"]-tithe
+        net_bal=ipeu+trade_net+tax_inc+tithe_in-total_exp-debt["q_interest"]-tithe
         eco_mod=econ_model_ipeu_modifier(nation); nc=GREEN if net_bal>=0 else RED_C
+        ipeu_current=ipeu*eco_mod
         mil_cons=compute_military_consumption(nation)
         R+=[_hdr1("ECONOMY"),
             _row("Economic Model",econ,vcol=GOLD),
             _row("IPEU (base)",fmt_cr(ipeu),["base_ipeu"],"float",GOLD),
+            _row("IPEU (current)",fmt_cr(ipeu_current),vcol=BRIGHT),
             _row("Eco Multiplier",f"x{eco_mod:.3f}",vcol=CYAN),
             _row("IPEU Growth",fmt_pct(nation.get("ipeu_growth",0)),["ipeu_growth"],"pct",CYAN),
             _row("IPEU/Capita",f"{int(ipeu/pop):,} cr" if pop else "N/A"),
@@ -1137,6 +1235,8 @@ def build_rows(nation,state,tab,collapsed_keys=None):
             _row("  Imports",fmt_cr(trade_data["imports"]),vcol=RED_C),
             _row("  Transit",fmt_cr(trade_data["transit_income"]),vcol=TEAL),
             _row("Local Mkt Tax",fmt_cr(tax_inc),vcol=CYAN)]
+        if tithe_in>0:
+            R.append(_row("Tithe Income",f"+{fmt_cr(tithe_in)}",vcol=GOLD))
         if tithe>0:
             R.append(_row("Church Tithe",f"-{fmt_cr(tithe)}",vcol=GOLD))
         R+=[_row("Research Bgt",fmt_cr(rb),["research_budget"],"float",CYAN),
@@ -1166,8 +1266,19 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                 _row("  Invest Bonus",f"+{inv_bonus:.1f} attr.",["investment_rate"],"pct",GREEN)]
         R+=[_sep(),_hdr2("MILITARY CONSUMPTION"),
             _row("  Food",fmt_res(mil_cons["Food"])+" / turn",vcol=RED_C if mil_cons["Food"]>0 else DIM),
-            _row("  Alloys",fmt_res(mil_cons["Alloys"])+" / turn",vcol=RED_C if mil_cons["Alloys"]>0 else DIM),
-            _sep(),_hdr2("FISCAL REPORT")]
+            _row("  Alloys",fmt_res(mil_cons["Alloys"])+" / turn",vcol=RED_C if mil_cons["Alloys"]>0 else DIM)]
+        eproj=nation.get("economic_projects") or []
+        ep_key="eco_projects"; ep_open=ep_key not in collapsed_keys
+        R+=[_sep(),_collapse(f"ECONOMIC PROJECTS  ({len(eproj)} active)",ep_key,ep_open,GOLD)]
+        if ep_open:
+            R.append(_btn("  + New Project","open_eco_project",{},(30,50,20)))
+            for epi,ep in enumerate(eproj):
+                pc=GREEN if ep.get("status")=="active" else DIM
+                tr2=ep.get("turns_remaining",0); tt=ep.get("total_turns",1)
+                R+=[_row(f"  [{ep.get('type','?')}] {ep.get('name','?')[:28]}",
+                         f"Cost:{fmt_cr(ep.get('cost_per_turn',0))}/t  {tr2}/{tt}t left",vcol=pc),
+                    _btn(f"    \u2715 Remove","remove_eco_project",{"epi":epi},(60,18,18))]
+        R+=[_sep(),_hdr2("FISCAL REPORT")]
         dc=RED_C if debt["is_debtor"] else GREEN
         R+=[_row("Status","Debtor" if debt["is_debtor"] else "Creditor",vcol=dc),
             _row("Debt Balance",fmt_cr(debt["balance"]),["debt_balance"],"float"),
@@ -1269,6 +1380,7 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                 for grp,us in gd.items():
                     R.append(_row(f"  [{grp}]","",vcol=GOLD))
                     for u in us:
+                        afd_idx=afd.index(u) if u in afd else -1  # safe index into full afd list
                         nm=u.get("custom_name") or u.get("unit","?")
                         cnt=u.get("count",1)
                         uname=u.get("unit","")
@@ -1281,6 +1393,7 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                             alloy_c=UNIT_ALLOY_CON.get(uname,0)*cnt
                         cons_str=f"F:{fmt_res(food_c)} A:{fmt_res(alloy_c)}"
                         R.append(_row(f"    {nm}",f"x{cnt} | {u.get('veterancy','?')} | {cons_str}",vcol=TEXT))
+                        if afd_idx>=0: R.append(_btn(f"      ✏ Edit","edit_unit",{"unit_idx":afd_idx},(16,32,52)))
             else: R.append(_row("  None","",vcol=DIM))
             R.append(_sep())
         R.append(_hdr2("ARSENAL"))
@@ -1288,6 +1401,27 @@ def build_rows(nation,state,tab,collapsed_keys=None):
             R.append(_row(f"  {a.get('name','?')}",f"{a.get('type','?')} | {a.get('size','?')} | Crew {a.get('crew','?')}"))
         if not (nation.get("arsenal") or []): R.append(_row("  None","",vcol=DIM))
 
+        R+=[_sep(),_btn("+ Add / Edit Unit","open_unit_builder",{},(20,40,70))]
+        # ── military deaths ──
+        mil_deaths=nation.get("military_deaths") or []
+        if mil_deaths:
+            R+=[_sep(),_hdr2("MILITARY CASUALTIES")]
+            _LIFE_STAGES=["Teen","Young Adult","Adult","Middle Aged","Senior"]
+            by_sp={}
+            for d in mil_deaths:
+                sp_n=d.get("species","Unknown"); by_sp.setdefault(sp_n,[]).append(d)
+            for sp_n,deaths in by_sp.items():
+                total_d=sum(d.get("count",0) for d in deaths)
+                R.append(_row(f"  {sp_n[:22]}",f"Total: {fmt_pop(total_d)} KIA",vcol=RED_C))
+                stage_totals={ls:0 for ls in _LIFE_STAGES}
+                for d in deaths:
+                    ls=d.get("life_stage","Adult")
+                    if ls in stage_totals: stage_totals[ls]+=d.get("count",0)
+                for ls,cnt in stage_totals.items():
+                    if cnt>0:
+                        pct=cnt/total_d*100 if total_d else 0
+                        R.append(_row(f"    {ls}",f"{fmt_pop(cnt)}  ({pct:.1f}%)",vcol=ORANGE))
+        R+=[_sep(),_btn("+ Log Casualties","open_casualties",{},(60,20,20))]
     # ── TERRITORY ─────────────────────────────────────────────────────────────
     elif tab=="TERRITORY":
         R+=[_hdr1("TERRITORIES"),_btn("+ Add System","add_system",{},(22,60,36)),_sep()]
@@ -1329,6 +1463,14 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                                         mc=DISTRICT_MINERAL_COST.get(dt,20); bt=DISTRICT_BUILD_TURNS.get(dt,3)
                                         R.append(_btn(f"          {dt}  [{mc}Min/{bt}t]","build_district",
                                             {"si":si,"pi":pi,"sett_i":sett_i,"district_type":dt},(30,50,30)))
+                                # manage/remove districts
+                                mk=f"mandistrict_{si}_{pi}_{sett_i}"; mx2=mk not in collapsed_keys
+                                nd=len(s.get("districts",[]))
+                                R.append(_collapse(f"        ✕ Manage Districts ({nd})",mk,mx2,RED_C))
+                                if mx2:
+                                    for di,dd in enumerate(s.get("districts",[])):
+                                        R.append(_btn(f"          [{dd.get('type','?')}] ({dd.get('status','Operational')})  Remove",
+                                            "confirm_remove_district",{"si":si,"pi":pi,"sett_i":sett_i,"di":di},(70,18,18)))
                             platforms=planet.get("platforms",[]) or []
                             if platforms:
                                 R.append(_row("    Platforms",f"{len(platforms)} installed",vcol=PURPLE))
@@ -1339,7 +1481,8 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                                 _btn("    + Hydroponics","add_platform",{"si":si,"pi":pi,"ptype":"Hydroponics"},(20,50,40)),
                                 _btn("    + Research Platform","add_platform",{"si":si,"pi":pi,"ptype":"Research"},(20,40,60)),
                                 _btn("    + Dockyards","add_platform",{"si":si,"pi":pi,"ptype":"Dockyards"},(40,30,20)),
-                                _btn(f"    Randomize Planet","randomize_planet",{"si":si,"pi":pi},(60,30,80)),_sep()]
+                                _btn(f"    Randomize Planet","randomize_planet",{"si":si,"pi":pi},(60,30,80)),
+                                _btn(f"    ✕ Remove Planet","confirm_remove_planet",{"si":si,"pi":pi},(70,18,18)),_sep()]
                 R.append(_sep())
 
     # ── MARKET ────────────────────────────────────────────────────────────────
@@ -1360,13 +1503,15 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                 mn=min(hist[-8:]); mxh=max(hist[-8:],default=mn+0.001)
                 bh="".join("_..,-+|#"[min(7,int((v-mn)/(mxh-mn+0.001)*8))] for v in hist[-8:])
                 R.append(_row("    History (8t)",f"{bh}  lo:{mn:.3f} hi:{mxh:.3f}",vcol=DIM))
-        R+=[_sep(),_hdr2(f"TRADE ROUTES ({len(routes)} total)")]
+        R+=[_sep(),_hdr2(f"TRADE ROUTES ({len(routes)} total)"),
+            _btn("  + New Trade Route","open_trade_builder",{},(20,55,30))]
         for r in routes:
             st=r.get("status","?"); sc=GREEN if st=="active" else RED_C
             pl=r.get("_piracy_loss_this_turn",0.0); pc=RED_C if pl>0 else DIM
             R+=[_row(f"  [{r.get('id','?')}] {r.get('name','')}",f"{r.get('resource','?')}  {fmt_cr(r.get('credits_per_turn',0))}/t  [{st}]",vcol=sc),
                 _row(f"    {r.get('exporter','?')} → {r.get('importer','?')}","",vcol=DIM),
-                _row("    Piracy",f"Dist:{r.get('pirate_distance','?')}  Inc:{r.get('pirate_incidents',0)}  Total:{fmt_cr(r.get('total_pirated',0))}",vcol=pc)]
+                _row("    Piracy",f"Dist:{r.get('pirate_distance','?')}  Inc:{r.get('pirate_incidents',0)}  Total:{fmt_cr(r.get('total_pirated',0))}",vcol=pc),
+                _btn(f"    ✏ Edit Route","edit_trade_route",{"route_id":r.get("id")},(20,35,55))]
             if r.get("transit_nations"):
                 tns=", ".join(f"{t.get('nation','?')}({t.get('tax_rate',0)*100:.0f}%)" for t in r["transit_nations"])
                 R.append(_row("    Transit",tns,vcol=DIM))
@@ -1377,7 +1522,9 @@ def build_rows(nation,state,tab,collapsed_keys=None):
         market=state.get("market",{}); mods=market.get("market_modifier",{})
         base_p=market.get("price_base",{}); ph=market.get("price_history",{})
         gal_stock,gal_prod,gal_cons=compute_galactic_stockpiles(state)
-        R+=[_hdr1("GALACTIC MARKET"),_hdr2("COMMODITY OVERVIEW")]
+        R+=[_hdr1("GALACTIC MARKET"),
+            _btn("  Open Graphs","open_graphs",{},(30,20,65)),
+            _hdr2("COMMODITY OVERVIEW")]
         for rname in _RESOURCES:
             base=base_p.get(rname,RES_BASE_PRICE[rname]); curr=mods.get(rname,base); mult=curr/base if base else 1.0
             col=GREEN if mult>1.1 else (RED_C if mult<0.9 else (GOLD if mult>1.0 else DIM))
@@ -1419,6 +1566,45 @@ def build_rows(nation,state,tab,collapsed_keys=None):
         for n in psst: R.append(_row(f"  {n}","",vcol=GOLD))
         if not psst: R.append(_row("  None listed","",vcol=DIM))
 
+    # ── CORP ──────────────────────────────────────────────────────────────────
+    elif tab=="CORP":
+        cd=nation.get("corporate_data",{})
+        trust=cd.get("trust",0.5); trust_c=GREEN if trust>0.7 else (GOLD if trust>0.4 else RED_C)
+        corp_inc=compute_corp_income(nation)
+        prod_pct=cd.get("product_sale_pct",0.0); svc_pct=cd.get("service_income_pct",0.0)
+        offices=cd.get("offices",0); stores=cd.get("stores",0)
+        R+=[_hdr1("CORPORATE PROFILE"),
+            _row("Entity",nation.get("corp_entity_name",nation["name"]),["corp_entity_name"],"str",BRIGHT),
+            _sep(),
+            _bar("  TRUST",trust,f"{trust*100:.1f}%",trust_c),
+            _row("  Trust Value",f"{trust*100:.1f}%",["corporate_data","trust"],"pct",trust_c),
+            _sep(),_hdr2("CORPORATE ENTERPRISES"),
+            _row("  Product Sale Income",f"{prod_pct*100:.1f}%",["corporate_data","product_sale_pct"],"pct",CYAN),
+            _row("  Service Income",f"{svc_pct*100:.1f}%",["corporate_data","service_income_pct"],"pct",TEAL),
+            _row("  Offices (other systems)",str(offices),["corporate_data","offices"],"int",GOLD),
+            _row("  Stores (other systems)",str(stores),["corporate_data","stores"],"int",GOLD),
+            _sep(),_hdr2("CORP INCOME SUMMARY"),
+            _row("  Base (IPEU × rates × trust)",fmt_cr(ipeu*(prod_pct+svc_pct)*trust),vcol=GREEN),
+            _row("  Office Income",fmt_cr(offices*1e9*trust),vcol=CYAN),
+            _row("  Store Income",fmt_cr(stores*5e8*trust),vcol=TEAL),
+            _row("  TOTAL / turn",fmt_cr(corp_inc),vcol=BRIGHT),
+            _sep(),_hdr2("CLIENTS & CONTRACTS")]
+        contracts=cd.get("contracts") or []
+        if not contracts: R.append(_row("  No active contracts","",vcol=DIM))
+        for ci,c in enumerate(contracts):
+            sc=GREEN if c.get("status")=="active" else RED_C
+            R+=[_row(f"  [{c.get('client','?')[:20]}]",
+                     f"{c.get('product','?')}  {fmt_cr(c.get('value_per_turn',0))}/t  [{c.get('status','?')}]",vcol=sc),
+                _btn(f"    ✕ End Contract","end_corp_contract",{"ci":ci},(60,18,18))]
+        R+=[_btn("  + New Contract","open_corp_contract",{},(20,55,30)),
+            _sep(),_hdr2("CORPORATE REPUTATION")]
+        rep_log=cd.get("reputation_log") or []
+        if not rep_log: R.append(_row("  No reputation events","",vcol=DIM))
+        for ev2 in rep_log[-8:]:
+            col2=GREEN if ev2.get("delta",0)>0 else RED_C
+            R.append(_row(f"  T{ev2.get('turn','?')} {ev2.get('label','?')[:30]}",
+                          f"{ev2.get('delta',0):+.1f}%",vcol=col2))
+
     # ── EVENTS ────────────────────────────────────────────────────────────────
     elif tab=="EVENTS":
         elog=state.get("events_log",[]) or []; nname=nation["name"]
@@ -1432,6 +1618,469 @@ def build_rows(nation,state,tab,collapsed_keys=None):
                 if t!=cur_t: cur_t=t; R.append(_hdr2(f"Turn {t}  .  {e.get('year','?')} Q{e.get('quarter','?')}"))
                 R.append(_ev_row(e))
     return R
+
+_TR_DIST_OPTIONS=["near","kind of far","too far"]
+_TR_STATUS_OPTIONS=["active","suspended"]
+
+class ConfirmOverlay:
+    H=72
+    def __init__(self):
+        self.active=False; self.message=""; self.pending_action=None; self.pending_data={}
+        mid=SW//2; y_btn=SH-self.H-SBAR_H+20
+        self.btn_yes=Button((mid-96,y_btn,90,28),"YES (Enter)",accent=True)
+        self.btn_no=Button((mid+6,y_btn,90,28),"NO (Esc)")
+    def open(self,message,action,data):
+        self.active=True; self.message=message; self.pending_action=action; self.pending_data=data
+    def close(self): self.active=False; self.pending_action=None; self.pending_data={}
+    def draw(self,surf,dt):
+        if not self.active: return
+        y=SH-self.H-SBAR_H; r=pygame.Rect(0,y,SW,self.H)
+        draw_rect(surf,r,(35,10,10)); draw_rect(surf,r,RED_C,border=1)
+        draw_text(surf,f"CONFIRM: {self.message}",14,y+8,gf(12),BRIGHT)
+        self.btn_yes.draw(surf); self.btn_no.draw(surf)
+    def on_event(self,ev):
+        if not self.active: return None
+        if self.btn_yes.on_event(ev):
+            act,d=self.pending_action,self.pending_data; self.close(); return (act,d)
+        if self.btn_no.on_event(ev): self.close(); return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_RETURN:
+                act,d=self.pending_action,self.pending_data; self.close(); return (act,d)
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+        return None
+
+
+class TradeBuilderOverlay:
+    """Overlay for creating/editing trade routes in the MARKET tab panel area."""
+    def __init__(self):
+        self.active=False; self.mode="new"; self.route_id=None
+        self.fields=[]; self.transit_list=[]; self._nation_names=[]
+        self._transit_nation_idx=0; self._transit_tax_buf="0.05"
+        self.field_idx=0; self._blink=0.0
+    def _init_fields(self,route,nation_names):
+        self._nation_names=list(nation_names)
+        def cidx(lst,v,fb=0): return lst.index(v) if v in lst else fb
+        self.fields=[
+            {"key":"name",            "label":"Route Name",        "type":"text",   "val":route.get("name","New Route")},
+            {"key":"exporter",        "label":"Exporter",          "type":"choice", "val":cidx(nation_names,route.get("exporter",""),0),"opts":list(nation_names)},
+            {"key":"importer",        "label":"Importer",          "type":"choice", "val":cidx(nation_names,route.get("importer",""),0),"opts":list(nation_names)},
+            {"key":"resource",        "label":"Resource",          "type":"choice", "val":cidx(_RESOURCES,route.get("resource","Food"),0),"opts":list(_RESOURCES)},
+            {"key":"credits_per_turn","label":"Credits / Turn",    "type":"float",  "val":str(route.get("credits_per_turn",0.0))},
+            {"key":"pirate_distance", "label":"Pirate Distance",   "type":"choice", "val":cidx(_TR_DIST_OPTIONS,route.get("pirate_distance","near"),0),"opts":_TR_DIST_OPTIONS},
+            {"key":"pirate_escort",   "label":"Escort Ships",      "type":"int",    "val":str(route.get("pirate_escort",0))},
+            {"key":"route_modifier",  "label":"Route Modifier %",  "type":"float",  "val":str(round(route.get("route_modifier",0.0)*100,2))},
+            {"key":"status",          "label":"Status",            "type":"choice", "val":cidx(_TR_STATUS_OPTIONS,route.get("status","active"),0),"opts":_TR_STATUS_OPTIONS},
+        ]
+        self.transit_list=list(route.get("transit_nations",[]))
+        self._transit_nation_idx=0; self._transit_tax_buf="5.0"; self.field_idx=0
+    def open_new(self,nation_names): self.active=True; self.mode="new"; self.route_id=None; self._init_fields({},nation_names)
+    def open_edit(self,route,nation_names): self.active=True; self.mode="edit"; self.route_id=route.get("id"); self._init_fields(route,nation_names)
+    def close(self): self.active=False
+    def get_route_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="float":
+                try: v=float(f["val"])
+                except: v=0.0
+                d[f["key"]]=(v/100.0 if f["key"]=="route_modifier" else v)
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            else: d[f["key"]]=f["val"]
+        d["transit_nations"]=[dict(t) for t in self.transit_list]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,10,20))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),EDITBDR,border=2)
+        f11=gf(11); f10=gf(10); f13=gf(13)
+        lbl="NEW TRADE ROUTE" if self.mode=="new" else f"EDIT ROUTE  [{self.route_id}]"
+        draw_text(surf,lbl,rx+12,ry+7,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=edit text  Enter=save  Esc=cancel",rx+12,ry+24,f10,DIM)
+        draw_text(surf,"T=add transit  R=remove last transit  [/]=cycle transit nation",rx+12,ry+36,f10,DIM)
+        y=ry+52
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            row_r=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,row_r,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,row_r,EDITBDR,border=1,radius=2)
+            lc=BRIGHT if sel else DIM
+            draw_text(surf,f["label"],rx+14,y+4,f11,lc)
+            if f["type"]=="choice":
+                vc=CYAN if sel else TEXT
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+230,y+4,f11,vc)
+            else:
+                cursor="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cursor,rx+230,y+4,f11,EDITBDR if sel else TEXT)
+            y+=24
+        # transit section
+        y+=6; draw_text(surf,"TRANSIT NATIONS:",rx+14,y,f11,GOLD); y+=18
+        if not self.transit_list: draw_text(surf,"  (none)",rx+14,y,f10,DIM); y+=16
+        for t in self.transit_list:
+            draw_text(surf,f"  {t.get('nation','?')}  tax:{t.get('tax_rate',0)*100:.1f}%  [{t.get('status','active')}]",rx+14,y,f10,TEAL); y+=16
+        y+=4
+        if self._nation_names:
+            tn=self._nation_names[self._transit_nation_idx%len(self._nation_names)]
+            draw_text(surf,f"  [T] Add: {tn}  tax:{self._transit_tax_buf}%   [/] to cycle nation",rx+14,y,f10,(80,130,80))
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1); return None
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1); return None
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("text","float","int"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+            # Transit controls (only when not editing a text field)
+            if ev.key==pygame.K_t and f["type"]!="text":
+                if self._nation_names:
+                    tn=self._nation_names[self._transit_nation_idx%len(self._nation_names)]
+                    try: tr=float(self._transit_tax_buf)/100.0
+                    except: tr=0.05
+                    self.transit_list.append({"nation":tn,"tax_rate":round(tr,4),"status":"active"})
+            elif ev.key==pygame.K_r and f["type"]!="text":
+                if self.transit_list: self.transit_list.pop()
+            elif ev.key==pygame.K_LEFTBRACKET:
+                self._transit_nation_idx=(self._transit_nation_idx-1)%max(1,len(self._nation_names))
+            elif ev.key==pygame.K_RIGHTBRACKET:
+                self._transit_nation_idx=(self._transit_nation_idx+1)%max(1,len(self._nation_names))
+        return None
+
+
+_GRAPH_VIEWS=["PRICES","NATIONS IPEU","GALACTIC FLOWS"]
+_GRAPH_RES_COLORS=[GREEN,CYAN,GOLD,ORANGE,PURPLE]
+
+class GraphOverlay:
+    """Full-panel graph overlay with three views."""
+    def __init__(self): self.active=False; self.view_idx=0
+    def open(self): self.active=True
+    def close(self): self.active=False
+    def _line_chart(self,surf,series,rx,ry,rw,rh,title,colors):
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(7,13,23))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=1)
+        f10=gf(10); f11=gf(11)
+        draw_text(surf,title,rx+6,ry+4,f11,BRIGHT)
+        all_v=[v for _,vs in series for v in vs]
+        if not all_v: draw_text(surf,"No data yet — advance turns.",rx+20,ry+40,f10,DIM); return
+        mn=min(all_v); mx2=max(all_v)
+        if mx2==mn: mx2=mn+1
+        pl=62; pr=10; pt=22; pb=22
+        cw=rw-pl-pr; ch=rh-pt-pb; cx0=rx+pl; cy0=ry+pt+ch
+        for i in range(5):
+            yv=mn+(mx2-mn)*i/4; yp=cy0-int(ch*i/4)
+            pygame.draw.line(surf,BORDER,(cx0,yp),(cx0+cw,yp),1)
+            draw_text(surf,f"{yv:.2f}",rx+2,yp-6,f10,DIM)
+        n_pts=max((len(vs) for _,vs in series),default=1)
+        for (lbl,vs),col in zip(series,colors):
+            if len(vs)<2: continue
+            pts=[]
+            for j,v in enumerate(vs):
+                xp=cx0+int(cw*j/max(1,n_pts-1)); yp=cy0-int(ch*(v-mn)/(mx2-mn))
+                pts.append((xp,yp))
+            for j in range(len(pts)-1):
+                pygame.draw.line(surf,col,pts[j],pts[j+1],2)
+            if pts: draw_text(surf,lbl[:7],pts[-1][0]+2,pts[-1][1]-6,f10,col)
+    def _bar_chart(self,surf,data,rx,ry,rw,rh,title,col=CYAN):
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(7,13,23))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=1)
+        f10=gf(10); f11=gf(11)
+        draw_text(surf,title,rx+6,ry+4,f11,BRIGHT)
+        if not data: return
+        mx2=max(v for _,v in data) or 1
+        bh2=min(20,max(10,(rh-30)//max(1,len(data))-3))
+        y=ry+24
+        for lbl,val in data:
+            bw2=int((rw-160)*val/mx2)
+            draw_rect(surf,pygame.Rect(rx+140,y,max(2,bw2),bh2),col,radius=2)
+            draw_text(surf,lbl[:20],rx+4,y+2,f10,DIM)
+            draw_text(surf,fmt_cr(val),rx+144+bw2+2,y+2,f10,TEXT)
+            y+=bh2+4
+    def draw(self,surf,state):
+        if not self.active: return
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,9,17))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"GRAPHS",rx+12,ry+6,f13,BRIGHT)
+        draw_text(surf,"Left/Right = switch view   Esc = close",rx+12,ry+22,f10,DIM)
+        view=_GRAPH_VIEWS[self.view_idx]
+        for i,v in enumerate(_GRAPH_VIEWS):
+            sel=(i==self.view_idx)
+            tx=rx+rw-260+i*88
+            tr=pygame.Rect(tx,ry+4,86,22)
+            draw_rect(surf,tr,SEL if sel else (12,22,36),radius=3)
+            if sel: draw_rect(surf,tr,EDITBDR,border=1,radius=3)
+            draw_text(surf,v,tr.x+4,tr.y+4,f10,BRIGHT if sel else DIM)
+        market=state.get("market",{}); ph=market.get("price_history",{})
+        if view=="PRICES":
+            series=[(rn[:6],[v for v in ph.get(rn,[])[-24:]]) for rn in _RESOURCES if ph.get(rn)]
+            self._line_chart(surf,series,rx+6,ry+38,rw-12,rh-44,"Resource Price History (last 24 turns)",_GRAPH_RES_COLORS)
+        elif view=="NATIONS IPEU":
+            nations=state.get("nations",[])
+            data=sorted([(n["name"],n.get("base_ipeu",0)) for n in nations],key=lambda x:-x[1])
+            self._bar_chart(surf,data,rx+6,ry+38,rw-12,rh-44,"Nation IPEU Comparison",CYAN)
+        elif view=="GALACTIC FLOWS":
+            gal_stock,gal_prod,gal_cons=compute_galactic_stockpiles(state)
+            draw_rect(surf,pygame.Rect(rx+6,ry+38,rw-12,rh-44),(7,13,23))
+            draw_rect(surf,pygame.Rect(rx+6,ry+38,rw-12,rh-44),BORDER2,border=1)
+            draw_text(surf,"Galactic Resource Net Flow / Turn",rx+14,ry+44,f11,BRIGHT)
+            y=ry+64; mx2=max((abs(gal_prod[r]-gal_cons[r]) for r in _RESOURCES),default=1) or 1
+            bw_max=rw-200
+            for rn,col in zip(_RESOURCES,_GRAPH_RES_COLORS):
+                net=gal_prod[rn]-gal_cons[rn]; bw2=int(bw_max*abs(net)/mx2)
+                draw_rect(surf,pygame.Rect(rx+130,y,max(2,bw2),18),GREEN if net>=0 else RED_C,radius=2)
+                draw_text(surf,rn[:16],rx+14,y+2,f10,DIM)
+                sign="+" if net>=0 else ""
+                draw_text(surf,f"{sign}{fmt_res(net)}/t",rx+134+bw2+4,y+2,f10,GREEN if net>=0 else RED_C)
+                y+=26
+            y+=8; draw_text(surf,"Recent Price Shocks:",rx+14,y,f11,GOLD); y+=18
+            elog=state.get("events_log",[]) or []
+            shocks=[e for e in reversed(elog) if e.get("type")=="Market" and
+                    any(k in e.get("label","") for k in ("CRASH","BOOM","Surge","Drop"))][:6]
+            if not shocks: draw_text(surf,"  None on record",rx+14,y,f10,DIM)
+            for e in shocks:
+                draw_text(surf,f"  T{e.get('turn','?')} {e.get('label','?')}: {e.get('description','')[:65]}",rx+14,y,f10,tuple(e.get("col_rgb",[84,114,136]))); y+=14
+    def on_event(self,ev):
+        if not self.active: return
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close()
+            elif ev.key==pygame.K_LEFT: self.view_idx=(self.view_idx-1)%len(_GRAPH_VIEWS)
+            elif ev.key==pygame.K_RIGHT: self.view_idx=(self.view_idx+1)%len(_GRAPH_VIEWS)
+
+
+class UnitBuilderOverlay:
+    """Overlay to create or edit a unit in active_forces_detail."""
+    def __init__(self):
+        self.active=False; self.mode="new"; self.unit_idx=-1
+        self.fields=[]; self._blink=0.0; self.field_idx=0; self._nation_names=[]
+    def _make_fields(self,u,nation_names):
+        self._nation_names=list(nation_names)
+        raw_cat=_CAT_NORM.get(u.get("category","Spacefleet"),"Spacefleet")
+        cat_idx=_UNIT_CATS.index(raw_cat) if raw_cat in _UNIT_CATS else 0
+        ut_list=_UNIT_TYPES_BY_CAT[_UNIT_CATS[cat_idx]]
+        ut_idx=ut_list.index(u.get("unit",ut_list[0])) if u.get("unit") in ut_list else 0
+        vet_idx=_UNIT_VETERANCY.index(u.get("veterancy","Regular")) if u.get("veterancy") in _UNIT_VETERANCY else 1
+        self.fields=[
+            {"key":"category",    "label":"Category",       "type":"choice","val":cat_idx,  "opts":_UNIT_CATS},
+            {"key":"unit",        "label":"Unit Type",       "type":"choice","val":ut_idx,   "opts":ut_list},
+            {"key":"count",       "label":"Count",           "type":"int",   "val":str(u.get("count",1))},
+            {"key":"veterancy",   "label":"Veterancy",       "type":"choice","val":vet_idx,  "opts":_UNIT_VETERANCY},
+            {"key":"custom_name", "label":"Custom Name",     "type":"text",  "val":u.get("custom_name","")},
+            {"key":"training_turns","label":"Training Turns","type":"int",   "val":str(u.get("training_turns",0))},
+            {"key":"maintenance", "label":"Maintenance/t",  "type":"float", "val":str(u.get("maintenance",0.0))},
+        ]
+    def open_new(self,nation_names,unit_groups):
+        self.active=True; self.mode="new"; self.unit_idx=-1; self.field_idx=0
+        self._make_fields({},nation_names)
+    def open_edit(self,u,idx,nation_names,unit_groups):
+        self.active=True; self.mode="edit"; self.unit_idx=idx; self.field_idx=0
+        self._make_fields(u,nation_names)
+    def close(self): self.active=False
+    def _sync_cat(self):
+        cat=_UNIT_CATS[self.fields[0]["val"]]
+        ut_list=_UNIT_TYPES_BY_CAT[cat]
+        self.fields[1]["opts"]=ut_list; self.fields[1]["val"]=min(self.fields[1]["val"],len(ut_list)-1)
+    def get_unit_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            elif f["type"]=="float":
+                try: d[f["key"]]=float(f["val"])
+                except: d[f["key"]]=0.0
+            else: d[f["key"]]=f["val"]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,10,22))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        lbl="NEW UNIT" if self.mode=="new" else f"EDIT UNIT  [#{self.unit_idx}]"
+        draw_text(surf,lbl,rx+12,ry+7,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle choice  Type=edit text  Enter=save  Esc=cancel",rx+12,ry+24,f10,DIM)
+        y=ry+42
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,rr,EDITBDR,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+230,y+4,f11,CYAN if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+230,y+4,f11,EDITBDR if sel else TEXT)
+            y+=24
+        # consumption preview
+        ud=self.get_unit_data(); cat=ud.get("category",""); cnt=ud.get("count",1)
+        uname=ud.get("unit","")
+        if cat in ("Ground Forces",):
+            food_p=cnt*GROUND_DIVISION_SIZE*GROUND_FOOD_PER_SOLDIER
+            alloy_p=cnt*GROUND_ALLOY_PER_DIVISION
+        else:
+            food_p=UNIT_CREW.get(uname,0)*cnt; alloy_p=UNIT_ALLOY_CON.get(uname,0)*cnt
+        draw_text(surf,f"Consumption preview:  Food {fmt_res(food_p)}/t   Alloys {fmt_res(alloy_p)}/t",rx+14,y+6,f10,TEAL)
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1); return None
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1); return None
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+                if f["key"]=="category": self._sync_cat()
+            elif f["type"] in ("text","int","float"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+
+class EcoProjectOverlay:
+    """Simple overlay to define a new economic project."""
+    def __init__(self):
+        self.active=False; self._blink=0.0; self.field_idx=0
+        self.fields=[]
+    _PROJ_TYPES=["Investment","Subsidy","Infrastructure","R&D Grant","Market Intervention"]
+    _EFFECT_FIELDS=["ipeu_growth","pop_growth","bureaucratic_efficiency","subsidy_rate","investment_rate","none"]
+    def open(self):
+        self.active=True; self.field_idx=0
+        self.fields=[
+            {"key":"name",          "label":"Project Name",  "type":"text",  "val":"New Project"},
+            {"key":"type",          "label":"Project Type",  "type":"choice","val":0,"opts":self._PROJ_TYPES},
+            {"key":"cost_per_turn", "label":"Cost / Turn",   "type":"float", "val":"0"},
+            {"key":"total_turns",   "label":"Duration (turns)","type":"int", "val":"4"},
+            {"key":"effect_field",  "label":"Effect Field",  "type":"choice","val":0,"opts":self._EFFECT_FIELDS},
+            {"key":"effect_value",  "label":"Effect Value",  "type":"float", "val":"0.01"},
+        ]
+    def close(self): self.active=False
+    def get_data(self):
+        d={"status":"active"}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=1
+            elif f["type"]=="float":
+                try: d[f["key"]]=float(f["val"])
+                except: d[f["key"]]=0.0
+            else: d[f["key"]]=f["val"]
+        d["turns_remaining"]=d.get("total_turns",4)
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X+60; ry=MAIN_Y+40; rw=SW-MAIN_X-120; rh=260
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,12,22))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),GOLD,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"NEW ECONOMIC PROJECT",rx+10,ry+6,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=edit  Enter=save  Esc=cancel",rx+10,ry+22,f10,DIM)
+        y=ry+40
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,rr,GOLD,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+220,y+4,f11,GOLD if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+220,y+4,f11,GOLD if sel else TEXT)
+            y+=24
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1)
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1)
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("text","int","float"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+
+class CasualtiesOverlay:
+    """Log military deaths for a species."""
+    def __init__(self):
+        self.active=False; self._blink=0.0; self.field_idx=0; self.fields=[]
+    _LIFE_STAGES=["Teen","Young Adult","Adult","Middle Aged","Senior"]
+    def open(self,species_names):
+        self.active=True; self.field_idx=0
+        opts=list(species_names) if species_names else ["Unknown"]
+        self.fields=[
+            {"key":"species",    "label":"Species",    "type":"choice","val":0,"opts":opts},
+            {"key":"count",      "label":"Deaths",     "type":"int",   "val":"0"},
+            {"key":"life_stage", "label":"Life Stage", "type":"choice","val":2,"opts":self._LIFE_STAGES},
+        ]
+    def close(self): self.active=False
+    def get_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            else: d[f["key"]]=f["val"]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X+80; ry=MAIN_Y+80; rw=SW-MAIN_X-160; rh=140
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(18,5,5))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),RED_C,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"LOG CASUALTIES",rx+10,ry+6,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=count  Enter=log  Esc=cancel",rx+10,ry+22,f10,DIM)
+        y=ry+42
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else BG,radius=2)
+            if sel: draw_rect(surf,rr,RED_C,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+180,y+4,f11,RED_C if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+180,y+4,f11,RED_C if sel else TEXT)
+            y+=24
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1)
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1)
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("int","text"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
 
 # ── panels ────────────────────────────────────────────────────────────────────
 class LeftPanel:
@@ -1584,9 +2233,11 @@ def main():
     filepath=sys.argv[1] if len(sys.argv)>1 else DEFAULT_STATE
     sm=StateManager(filepath)
     if not sm.load(): sys.exit(f"[FATAL] Cannot load: {filepath}")
-    pygame.init(); pygame.display.set_caption("Carmine NRP Engine - vAlpha0.6.0")
+    pygame.init(); pygame.display.set_caption("Carmine NRP Engine - vAlpha0.6.6")
     surf=pygame.display.set_mode((SW,SH)); clock=pygame.time.Clock()
     left=LeftPanel(); main_=MainPanel(); gm_console=GMConsoleOverlay()
+    confirm_=ConfirmOverlay(); trade_builder_=TradeBuilderOverlay(); graph_overlay_=GraphOverlay()
+    unit_builder_=UnitBuilderOverlay(); eco_proj_=EcoProjectOverlay(); casualties_=CasualtiesOverlay()
     names=sm.nation_names(); sel_idx=0; tab_idx=0
 
     def cur_nation(): return sm.get_nation(names[sel_idx]) if names else None
@@ -1606,7 +2257,7 @@ def main():
         if n: path=_discord_export(n,sm.state); set_status(f"Discord -> {path}",CYAN)
 
     left.set_nations(names,sel_idx)
-    load_nation(0); set_status(f"Carmine v0.6.0  ~=GM console  loaded: {filepath}",CYAN)
+    load_nation(0); set_status(f"Carmine v0.6.6  ~=GM console  loaded: {filepath}",CYAN)
     running=True
     while running:
         dt=clock.tick(FPS)/1000.0
@@ -1616,6 +2267,99 @@ def main():
             # GM console swallows all input when active
             if gm_console.active:
                 gm_console.on_event(ev,sm,lambda: load_nation(sel_idx))
+                continue
+
+            # trade builder overlay swallows input when active
+            if trade_builder_.active:
+                tb_result=trade_builder_.on_event(ev)
+                if tb_result=="save":
+                    rd=trade_builder_.get_route_data()
+                    if trade_builder_.mode=="new":
+                        existing_ids=[r.get("id","") for r in sm.state.get("trade_routes",[])]
+                        new_id=f"TR{len(existing_ids)+1:04d}"
+                        while new_id in existing_ids: new_id=f"TR{random.randint(1000,9999)}"
+                        rd["id"]=new_id; rd.setdefault("pirate_incidents",0)
+                        rd.setdefault("total_pirated",0.0); rd.setdefault("_piracy_loss_this_turn",0.0)
+                        sm.state.setdefault("trade_routes",[]).append(rd)
+                        set_status(f"Trade route {new_id} created.",GREEN)
+                    else:
+                        routes2=sm.state.get("trade_routes",[])
+                        for ii,rr in enumerate(routes2):
+                            if rr.get("id")==trade_builder_.route_id:
+                                rd["id"]=trade_builder_.route_id
+                                rd["pirate_incidents"]=rr.get("pirate_incidents",0)
+                                rd["total_pirated"]=rr.get("total_pirated",0.0)
+                                rd["_piracy_loss_this_turn"]=rr.get("_piracy_loss_this_turn",0.0)
+                                routes2[ii]=rd; break
+                        set_status(f"Route {trade_builder_.route_id} updated.",CYAN)
+                    sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # confirm overlay
+            if confirm_.active:
+                cr=confirm_.on_event(ev)
+                if cr:
+                    cact,cdata=cr; n_c=cur_nation()
+                    if cact=="do_remove_planet" and n_c:
+                        si2,pi2=cdata["si"],cdata["pi"]
+                        sl2=n_c.get("star_systems",[])
+                        if si2<len(sl2) and pi2<len(sl2[si2].get("planets",[])):
+                            sl2[si2]["planets"].pop(pi2)
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Planet removed.",RED_C)
+                    elif cact=="do_remove_district" and n_c:
+                        si2,pi2,sett2,di2=cdata["si"],cdata["pi"],cdata["sett_i"],cdata["di"]
+                        try:
+                            n_c["star_systems"][si2]["planets"][pi2]["settlements"][sett2]["districts"].pop(di2)
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("District removed.",RED_C)
+                        except: pass
+                continue
+
+            # graph overlay
+            if graph_overlay_.active:
+                graph_overlay_.on_event(ev)
+                continue
+
+            # unit builder overlay
+            if unit_builder_.active:
+                ub_r=unit_builder_.on_event(ev)
+                if ub_r=="save":
+                    n_u=cur_nation()
+                    if n_u:
+                        ud=unit_builder_.get_unit_data()
+                        afd2=n_u.setdefault("active_forces_detail",[])
+                        if unit_builder_.mode=="new":
+                            ud["ugid"]=None; afd2.append(ud)
+                            set_status(f"Unit {ud.get('unit','?')} added.",GREEN)
+                        else:
+                            idx2=unit_builder_.unit_idx
+                            if 0<=idx2<len(afd2):
+                                ud["ugid"]=afd2[idx2].get("ugid"); afd2[idx2]=ud
+                                set_status(f"Unit updated.",CYAN)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # eco project overlay
+            if eco_proj_.active:
+                ep_r=eco_proj_.on_event(ev)
+                if ep_r=="save":
+                    n_e=cur_nation()
+                    if n_e:
+                        n_e.setdefault("economic_projects",[]).append(eco_proj_.get_data())
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status("Economic project added.",GOLD)
+                continue
+
+            # casualties overlay
+            if casualties_.active:
+                cas_r=casualties_.on_event(ev)
+                if cas_r=="save":
+                    n_ca=cur_nation()
+                    if n_ca:
+                        n_ca.setdefault("military_deaths",[]).append(casualties_.get_data())
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status("Casualties logged.",RED_C)
                 continue
 
             if main_.edit.active:
@@ -1637,20 +2381,17 @@ def main():
                     tabs=cur_tabs(); tab_idx2=(tab_idx+1)%len(tabs)
                     # we need nonlocal tab_idx
                     pass
-                elif pygame.K_1<=ev.key<=pygame.K_7:
-                    tabs=cur_tabs(); ti=ev.key-pygame.K_1
-                    if ti<len(tabs):
-                        nonlocal_tab=ti
-                        # handled below
+                elif pygame.K_1<=ev.key<=pygame.K_8:
+                    pass  # handled in second key block below
 
             # handle tab_idx changes cleanly
             if ev.type==pygame.KEYDOWN:
                 tabs=cur_tabs()
                 if ev.key==pygame.K_TAB:
                     tab_idx=(tab_idx+1)%len(tabs); load_nation(sel_idx)
-                elif pygame.K_1<=ev.key<=pygame.K_7:
+                elif pygame.K_1<=ev.key<=pygame.K_8:
                     ti=ev.key-pygame.K_1
-                    if ti<len(tabs): tab_idx=ti; load_nation(sel_idx)
+                    if 0<=ti<len(tabs): tab_idx=ti; load_nation(sel_idx)
 
             if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
                 tabs=cur_tabs()
@@ -1706,6 +2447,50 @@ def main():
                         if si<len(sl):
                             pl=sl[si].get("planets",[])
                             if pi<len(pl): randomize_planet(pl[pi],n.get("population",0)); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Planet randomized.",PURPLE)
+                    elif action=="confirm_remove_planet" and n:
+                        si2=data.get("si",0); pi2=data.get("pi",0)
+                        try: pname=n["star_systems"][si2]["planets"][pi2].get("name","?")
+                        except: pname="?"
+                        confirm_.open(f"Remove planet {pname}?","do_remove_planet",data)
+                    elif action=="confirm_remove_district" and n:
+                        si2,pi2,sett2,di2=data.get("si",0),data.get("pi",0),data.get("sett_i",0),data.get("di",0)
+                        try: dtype=n["star_systems"][si2]["planets"][pi2]["settlements"][sett2]["districts"][di2].get("type","?")
+                        except: dtype="?"
+                        confirm_.open(f"Remove {dtype} district?","do_remove_district",data)
+                    elif action=="open_trade_builder":
+                        trade_builder_.open_new(sm.nation_names())
+                    elif action=="edit_trade_route":
+                        rid=data.get("route_id")
+                        route_obj=next((r for r in sm.state.get("trade_routes",[]) if r.get("id")==rid),None)
+                        if route_obj: trade_builder_.open_edit(route_obj,sm.nation_names())
+                    elif action=="open_graphs":
+                        graph_overlay_.open()
+                    elif action=="open_unit_builder" and n:
+                        ugroups2=n.get("unit_groups") or []
+                        unit_builder_.open_new(sm.nation_names(),ugroups2)
+                    elif action=="edit_unit" and n:
+                        idx2=data.get("unit_idx",0); afd2=n.get("active_forces_detail",[]) or []
+                        if 0<=idx2<len(afd2):
+                            unit_builder_.open_edit(afd2[idx2],idx2,sm.nation_names(),n.get("unit_groups") or [])
+                    elif action=="open_eco_project":
+                        eco_proj_.open()
+                    elif action=="remove_eco_project" and n:
+                        epi2=data.get("epi",0); ep2=n.get("economic_projects") or []
+                        if 0<=epi2<len(ep2):
+                            ep2.pop(epi2); n["economic_projects"]=ep2
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Project removed.",RED_C)
+                    elif action=="open_casualties" and n:
+                        sp_names=[s["name"] for s in (n.get("species_populations") or [])]
+                        casualties_.open(sp_names)
+                    elif action=="end_corp_contract" and n:
+                        ci2=data.get("ci",0); contracts2=n.get("corporate_data",{}).get("contracts") or []
+                        if 0<=ci2<len(contracts2):
+                            contracts2[ci2]["status"]="ended"
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Contract ended.",RED_C)
+                    elif action=="open_corp_contract":
+                        set_status("Corp contracts: edit corporate_data.contracts in JSON for now.",DIM)
                     elif action=="roll_events":
                         n2=sm.get_nation(data.get("nation",""))
                         if n2:
@@ -1723,6 +2508,12 @@ def main():
         draw_top_bar(surf,names[sel_idx] if names else "N/A",turn,year,quarter,sm.dirty)
         draw_tab_bar(surf,tab_idx,tabs); left.draw(surf,turn,year,quarter); main_.draw(surf)
         main_.edit.draw(surf,dt)
+        unit_builder_.draw(surf,dt)
+        eco_proj_.draw(surf,dt)
+        casualties_.draw(surf,dt)
+        graph_overlay_.draw(surf,sm.state)
+        trade_builder_.draw(surf,dt)
+        confirm_.draw(surf,dt)
         gm_console.draw(surf,dt)
         draw_status_bar(surf); pygame.display.flip()
     pygame.quit()
