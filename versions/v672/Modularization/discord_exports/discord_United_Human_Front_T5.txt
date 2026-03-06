@@ -1,0 +1,812 @@
+-# [UHF] UNITED HUMAN FRONT
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Various Aliens (0.0%)
+  Species          : Human (0.0%)
+  Population       : 9.315B
+  Pop Growth       : +3.50% / yr
+  Homeworld        : Kellen
+  Civilisation     : N/A
+  Tier             : N/A
+  Economic Model   : PLANNED
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 18.600 Tcr
+  IPEU Growth      : +4.50% / yr
+  IPEU per Capita  : 1,996 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+   - Transit       : 0 cr
+  Local Mrket Tax  : 0 cr
+  Total Expenditure: 15.996 Tcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 2.604 Tcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                  30.0%  ████████████████████  5.580 Tcr
+  Infrastructure            25.0%  █████████████████░░░  4.650 Tcr
+  Industry                  10.0%  ███████░░░░░░░░░░░░░  1.860 Tcr
+  Agriculture               10.0%  ███████░░░░░░░░░░░░░  1.860 Tcr
+  Population Development    10.0%  ███████░░░░░░░░░░░░░  1.860 Tcr
+  Others                     1.0%  █░░░░░░░░░░░░░░░░░░░  186.000 Bcr
+  ─────────────────────────────────────────────────────────
+  TOTAL                     86.0%                        (15.996 Tcr)
+```
+### SPENDING EFFECTS
+```
+  Infra Trade Bonus      : +50.0% attractiveness
+  PopDev Growth          : +0.050% / yr
+  Military Morale        : +45.0%
+  Combat Power           : 5.580 Tcr  (10B cr = 1 CP)
+```
+# PLANNED DISTRIBUTION & EFFICIENCY
+```
+  Avg Loyalty            : 98.5 / 100
+  Resource Eff           : 124.2%
+  Construction Eff       : N/A
+  Research Eff           : N/A
+```
+## FISCAL REPORT
+```
+  Debtor / Creditor    : Creditor (GALACTIC TRADE CONFEDERATION)
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0% of IPEU  ░░░░░░░░░░░░░░░░░░░░
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────
+  Strategic Fund       : 9.641 Tcr
+  Fund increase / turn : +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 75235.740B
+  Food Production per turn  : 2.249B
+  Food Consumption per turn : 14.883M
+  Food Net per turn         : +2.234B
+  Food Trend                : ▲
+  Food Export               : 0 cr
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 546.700M
+  Minerals Consumption per turn : 765.000M
+  Minerals Net per turn         : -218.300M
+  Minerals Trend                : ▼
+  Minerals Export               : 0 cr
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 1.174B
+  Energy Consumption per turn : 593.800M
+  Energy Net per turn         : +580.362M
+  Energy Trend                : ▲
+  Energy Export               : 0 cr
+```
+```
+  Alloys Stockpile            : 2.20K
+  Alloys Production per turn  : 710.710M
+  Alloys Consumption per turn : 6.759M
+  Alloys Net per turn         : +703.951M
+  Alloys Trend                : ▲
+  Alloys Export               : 0 cr
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 328.020M
+  Consumer Goods Consumption per turn : 4.500M
+  Consumer Goods Net per turn         : +323.520M
+  Consumer Goods Trend                : ▲
+  Consumer Goods Export               : 0 cr
+```
+# TERRITORIES
+```
+  Home System: United H System
+  Planets:
+      - Kellen Planet
+        Type          : ?
+        Size          : ?
+        Habitability  : ?
+        Devastation   : 0.0%
+        Crime Rate    : 0.0%
+        Unrest        : 0.0%
+        Population    : 0
+    Capital City:
+      Population    : 9.395B
+      Settlements   : 8 districts
+        - Residential x1
+        - Urban x1
+        - Industrial Civilian x1
+        - Industrial Military x1
+        - Farming x1
+        - Mining x1
+        - Energy Plant x1
+        - Research Lab x1
+  Home System: System Beta
+  Planets:
+      - System Beta Alpha Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 34.4
+        Devastation   : 12.3%
+        Crime Rate    : 14.2%
+        Unrest        : 20.0%
+        Population    : 0
+    System Beta Alpha Alpha:
+      Population    : 154.800M
+      Settlements   : 2 districts
+        - Industrial Military x2
+      - System Beta Beta Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 54.5
+        Devastation   : 3.8%
+        Crime Rate    : 23.1%
+        Unrest        : 8.5%
+        Population    : 0
+    System Beta Beta Alpha:
+      Population    : 245.250M
+      Settlements   : 6 districts
+        - Mining x2
+        - Residential x1
+        - Farming x1
+        - Agricultural x1
+        - Military x1
+    System Beta Beta Beta:
+      Population    : 245.250M
+      Settlements   : 4 districts
+        - Military x2
+        - Research Lab x2
+      - System Beta Gamma Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 54.5
+        Devastation   : 7.1%
+        Crime Rate    : 8.0%
+        Unrest        : 17.6%
+        Population    : 0
+    System Beta Gamma Alpha:
+      Population    : 1.226B
+      Settlements   : 3 districts
+        - Research Lab x1
+        - Industrial Military x1
+        - Mining x1
+    System Beta Gamma Beta:
+      Population    : 1.226B
+      Settlements   : 6 districts
+        - Industrial Military x1
+        - Military x1
+        - Residential x1
+        - Energy Plant x1
+        - Agricultural x1
+        - Power x1
+  Home System: System Gamma
+  Planets:
+      - System Gamma Alpha Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 51.4
+        Devastation   : 4.1%
+        Crime Rate    : 18.8%
+        Unrest        : 0.1%
+        Population    : 0
+    System Gamma Alpha Alpha:
+      Population    : 771.000M
+      Settlements   : 4 districts
+        - Agricultural x1
+        - Urban x1
+        - Power x1
+        - Industrial Military x1
+    System Gamma Alpha Beta:
+      Population    : 771.000M
+      Settlements   : 4 districts
+        - Industrial Civilian x1
+        - Research Lab x1
+        - Military x1
+        - Power x1
+    System Gamma Alpha Gamma:
+      Population    : 771.000M
+      Settlements   : 4 districts
+        - Mining x1
+        - Energy Plant x1
+        - Research Lab x1
+        - Residential x1
+      - System Gamma Beta Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 32.8
+        Devastation   : 5.0%
+        Crime Rate    : 16.3%
+        Unrest        : 7.4%
+        Population    : 0
+    System Gamma Beta Alpha:
+      Population    : 590.400M
+      Settlements   : 2 districts
+        - Farming x2
+      - System Gamma Gamma Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 29.9
+        Devastation   : 9.5%
+        Crime Rate    : 2.7%
+        Unrest        : 1.4%
+        Population    : 0
+    System Gamma Gamma Alpha:
+      Population    : 134.550M
+      Settlements   : 2 districts
+        - Residential x1
+        - Research Lab x1
+  Home System: System Delta
+  Planets:
+      - System Delta Alpha Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 55.0
+        Devastation   : 3.0%
+        Crime Rate    : 0.0%
+        Unrest        : 19.2%
+        Population    : 0
+    System Delta Alpha Alpha:
+      Population    : 82.500M
+      Settlements   : 4 districts
+        - Research Lab x2
+        - Industrial Military x1
+        - Industrial Civilian x1
+    System Delta Alpha Beta:
+      Population    : 82.500M
+      Settlements   : 4 districts
+        - Agricultural x1
+        - Residential x1
+        - Mining x1
+        - Energy Plant x1
+    System Delta Alpha Gamma:
+      Population    : 82.500M
+      Settlements   : 4 districts
+        - Urban x1
+        - Industrial Civilian x1
+        - Agricultural x1
+        - Mining x1
+      - System Delta Beta Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 27.1
+        Devastation   : 2.2%
+        Crime Rate    : 1.9%
+        Unrest        : 11.9%
+        Population    : 0
+    System Delta Beta Alpha:
+      Population    : 162.600M
+      Settlements   : 3 districts
+        - Urban x1
+        - Industrial Civilian x2
+    System Delta Beta Beta:
+      Population    : 162.600M
+      Settlements   : 3 districts
+        - Power x1
+        - Urban x1
+        - Energy Plant x1
+    System Delta Beta Gamma:
+      Population    : 162.600M
+      Settlements   : 5 districts
+        - Residential x1
+        - Research Lab x1
+        - Urban x1
+        - Industrial Military x1
+        - Agricultural x1
+      - System Delta Gamma Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 23.5
+        Devastation   : 14.7%
+        Crime Rate    : 17.1%
+        Unrest        : 5.7%
+        Population    : 0
+    System Delta Gamma Alpha:
+      Population    : 352.500M
+      Settlements   : 4 districts
+        - Mining x1
+        - Power x1
+        - Urban x1
+        - Industrial Civilian x1
+    System Delta Gamma Beta:
+      Population    : 352.500M
+      Settlements   : 5 districts
+        - Urban x1
+        - Industrial Civilian x1
+        - Farming x1
+        - Residential x1
+        - Industrial Military x1
+    System Delta Gamma Gamma:
+      Population    : 352.500M
+      Settlements   : 3 districts
+        - Industrial Civilian x1
+        - Industrial Military x1
+        - Energy Plant x1
+      - System Delta Delta Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 76.7
+        Devastation   : 13.6%
+        Crime Rate    : 2.3%
+        Unrest        : 1.7%
+        Population    : 0
+    System Delta Delta Alpha:
+      Population    : 690.300M
+      Settlements   : 3 districts
+        - Military x1
+        - Energy Plant x1
+        - Industrial Military x1
+    System Delta Delta Beta:
+      Population    : 690.300M
+      Settlements   : 4 districts
+        - Industrial Military x1
+        - Urban x1
+        - Farming x1
+        - Energy Plant x1
+  Home System: System Epsilon
+  Planets:
+      - System Epsilon Alpha Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 13.8
+        Devastation   : 13.5%
+        Crime Rate    : 17.7%
+        Unrest        : 18.3%
+        Population    : 0
+    System Epsilon Alpha Alpha:
+      Population    : 62.100M
+      Settlements   : 5 districts
+        - Power x2
+        - Mining x1
+        - Urban x2
+      - System Epsilon Beta Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 79.8
+        Devastation   : 12.9%
+        Crime Rate    : 0.2%
+        Unrest        : 2.7%
+        Population    : 0
+    System Epsilon Beta Alpha:
+      Population    : 359.100M
+      Settlements   : 5 districts
+        - Farming x1
+        - Power x2
+        - Military x2
+    System Epsilon Beta Beta:
+      Population    : 359.100M
+      Settlements   : 5 districts
+        - Power x1
+        - Mining x1
+        - Industrial Military x1
+        - Military x2
+      - System Epsilon Gamma Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 72.1
+        Devastation   : 11.2%
+        Crime Rate    : 24.5%
+        Unrest        : 2.9%
+        Population    : 0
+    System Epsilon Gamma Alpha:
+      Population    : 648.900M
+      Settlements   : 6 districts
+        - Power x1
+        - Agricultural x1
+        - Residential x1
+        - Farming x1
+        - Military x1
+        - Industrial Civilian x1
+      - System Epsilon Delta Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 68.5
+        Devastation   : 11.4%
+        Crime Rate    : 24.0%
+        Unrest        : 11.8%
+        Population    : 0
+    System Epsilon Delta Alpha:
+      Population    : 1.028B
+      Settlements   : 3 districts
+        - Military x1
+        - Research Lab x1
+        - Residential x1
+    System Epsilon Delta Beta:
+      Population    : 1.028B
+      Settlements   : 6 districts
+        - Power x1
+        - Military x2
+        - Research Lab x1
+        - Farming x1
+        - Urban x1
+    System Epsilon Delta Gamma:
+      Population    : 1.028B
+      Settlements   : 6 districts
+        - Residential x2
+        - Farming x2
+        - Mining x1
+        - Industrial Civilian x1
+  Home System: System Zeta
+  Planets:
+      - System Zeta Alpha Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 77.2
+        Devastation   : 4.5%
+        Crime Rate    : 23.6%
+        Unrest        : 8.7%
+        Population    : 0
+    System Zeta Alpha Alpha:
+      Population    : 231.600M
+      Settlements   : 3 districts
+        - Agricultural x1
+        - Industrial Civilian x1
+        - Farming x1
+    System Zeta Alpha Beta:
+      Population    : 231.600M
+      Settlements   : 3 districts
+        - Industrial Military x2
+        - Farming x1
+    System Zeta Alpha Gamma:
+      Population    : 231.600M
+      Settlements   : 2 districts
+        - Mining x1
+        - Energy Plant x1
+      - System Zeta Beta Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 53.7
+        Devastation   : 15.0%
+        Crime Rate    : 1.5%
+        Unrest        : 15.4%
+        Population    : 0
+    System Zeta Beta Alpha:
+      Population    : 241.650M
+      Settlements   : 6 districts
+        - Military x1
+        - Urban x1
+        - Farming x2
+        - Power x2
+      - System Zeta Gamma Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 32.4
+        Devastation   : 9.5%
+        Crime Rate    : 21.6%
+        Unrest        : 15.2%
+        Population    : 0
+    System Zeta Gamma Alpha:
+      Population    : 729.000M
+      Settlements   : 4 districts
+        - Agricultural x2
+        - Industrial Civilian x1
+        - Mining x1
+    System Zeta Gamma Beta:
+      Population    : 729.000M
+      Settlements   : 4 districts
+        - Military x2
+        - Energy Plant x1
+        - Research Lab x1
+      - System Zeta Delta Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 33.1
+        Devastation   : 1.8%
+        Crime Rate    : 15.0%
+        Unrest        : 8.6%
+        Population    : 0
+    System Zeta Delta Alpha:
+      Population    : 744.750M
+      Settlements   : 5 districts
+        - Research Lab x1
+        - Power x2
+        - Energy Plant x1
+        - Farming x1
+    System Zeta Delta Beta:
+      Population    : 744.750M
+      Settlements   : 5 districts
+        - Research Lab x1
+        - Industrial Civilian x1
+        - Military x1
+        - Power x1
+        - Mining x1
+      - System Zeta Epsilon Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 51.9
+        Devastation   : 0.3%
+        Crime Rate    : 21.8%
+        Unrest        : 14.6%
+        Population    : 0
+    System Zeta Epsilon Alpha:
+      Population    : 233.550M
+      Settlements   : 4 districts
+        - Power x1
+        - Farming x1
+        - Energy Plant x1
+        - Mining x1
+    System Zeta Epsilon Beta:
+      Population    : 233.550M
+      Settlements   : 4 districts
+        - Military x1
+        - Agricultural x1
+        - Mining x2
+  Home System: System Prime
+  Planets:
+      - System Prime Alpha Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 62.3
+        Devastation   : 10.2%
+        Crime Rate    : 20.5%
+        Unrest        : 8.9%
+        Population    : 0
+    System Prime Alpha Alpha:
+      Population    : 1.121B
+      Settlements   : 3 districts
+        - Energy Plant x1
+        - Urban x1
+        - Industrial Military x1
+      - System Prime Beta Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 42.0
+        Devastation   : 7.0%
+        Crime Rate    : 18.0%
+        Unrest        : 19.7%
+        Population    : 0
+    System Prime Beta Alpha:
+      Population    : 252.000M
+      Settlements   : 2 districts
+        - Energy Plant x1
+        - Residential x1
+    System Prime Beta Beta:
+      Population    : 252.000M
+      Settlements   : 2 districts
+        - Industrial Military x1
+        - Mining x1
+    System Prime Beta Gamma:
+      Population    : 252.000M
+      Settlements   : 4 districts
+        - Research Lab x1
+        - Energy Plant x2
+        - Farming x1
+  Home System: System Secundus
+  Planets:
+      - System Secundus Alpha Planet
+        Type          : ?
+        Size          : Tiny
+        Habitability  : 52.5
+        Devastation   : 4.0%
+        Crime Rate    : 22.8%
+        Unrest        : 18.4%
+        Population    : 0
+    System Secundus Alpha Alpha:
+      Population    : 78.750M
+      Settlements   : 5 districts
+        - Military x2
+        - Power x1
+        - Farming x1
+        - Mining x1
+    System Secundus Alpha Beta:
+      Population    : 78.750M
+      Settlements   : 4 districts
+        - Industrial Military x1
+        - Industrial Civilian x1
+        - Military x1
+        - Farming x1
+    System Secundus Alpha Gamma:
+      Population    : 78.750M
+      Settlements   : 3 districts
+        - Agricultural x1
+        - Urban x1
+        - Industrial Civilian x1
+      - System Secundus Beta Planet
+        Type          : ?
+        Size          : Large
+        Habitability  : 45.4
+        Devastation   : 1.3%
+        Crime Rate    : 18.4%
+        Unrest        : 4.9%
+        Population    : 0
+    System Secundus Beta Alpha:
+      Population    : 715.050M
+      Settlements   : 3 districts
+        - Residential x1
+        - Farming x1
+        - Energy Plant x1
+    System Secundus Beta Beta:
+      Population    : 715.050M
+      Settlements   : 3 districts
+        - Industrial Military x1
+        - Military x1
+        - Residential x1
+      - System Secundus Gamma Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 69.6
+        Devastation   : 2.2%
+        Crime Rate    : 24.1%
+        Unrest        : 11.0%
+        Population    : 0
+    System Secundus Gamma Alpha:
+      Population    : 1.566B
+      Settlements   : 4 districts
+        - Military x1
+        - Urban x1
+        - Power x1
+        - Industrial Civilian x1
+    System Secundus Gamma Beta:
+      Population    : 1.566B
+      Settlements   : 2 districts
+        - Urban x1
+        - Agricultural x1
+      - System Secundus Delta Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 83.6
+        Devastation   : 10.5%
+        Crime Rate    : 10.4%
+        Unrest        : 13.7%
+        Population    : 0
+    System Secundus Delta Alpha:
+      Population    : 250.800M
+      Settlements   : 6 districts
+        - Residential x1
+        - Farming x1
+        - Mining x1
+        - Research Lab x1
+        - Urban x1
+        - Energy Plant x1
+    System Secundus Delta Beta:
+      Population    : 250.800M
+      Settlements   : 3 districts
+        - Power x1
+        - Industrial Military x1
+        - Research Lab x1
+    System Secundus Delta Gamma:
+      Population    : 250.800M
+      Settlements   : 5 districts
+        - Research Lab x2
+        - Industrial Civilian x2
+        - Urban x1
+      - System Secundus Epsilon Planet
+        Type          : ?
+        Size          : Medium
+        Habitability  : 61.1
+        Devastation   : 4.0%
+        Crime Rate    : 12.5%
+        Unrest        : 17.5%
+        Population    : 0
+    System Secundus Epsilon Alpha:
+      Population    : 366.600M
+      Settlements   : 5 districts
+        - Residential x1
+        - Military x1
+        - Farming x1
+        - Mining x1
+        - Industrial Civilian x1
+    System Secundus Epsilon Beta:
+      Population    : 366.600M
+      Settlements   : 3 districts
+        - Industrial Military x1
+        - Energy Plant x1
+        - Mining x1
+    System Secundus Epsilon Gamma:
+      Population    : 366.600M
+      Settlements   : 5 districts
+        - Farming x2
+        - Military x2
+        - Industrial Civilian x1
+      - System Secundus Zeta Planet
+        Type          : ?
+        Size          : Small
+        Habitability  : 78.6
+        Devastation   : 4.0%
+        Crime Rate    : 21.0%
+        Unrest        : 14.4%
+        Population    : 0
+    System Secundus Zeta Alpha:
+      Population    : 353.700M
+      Settlements   : 5 districts
+        - Industrial Military x1
+        - Residential x1
+        - Energy Plant x1
+        - Industrial Civilian x1
+        - Research Lab x1
+    System Secundus Zeta Beta:
+      Population    : 353.700M
+      Settlements   : 2 districts
+        - Agricultural x1
+        - Energy Plant x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 9.315B
+  Loyalty Modifier     : +0.00
+```
+```
+  Various Aliens 👑
+    Population       : 0
+    Share            : 0.0% — Minority
+    Growth Rate      : +2.50%
+    Culture          : Various
+    Language         : Various
+    Religion         : Various
+    Loyalty          : 25.0 / 100
+    Happiness        : 0.0 / 100
+```
+```
+  Human 👑
+    Population       : 0
+    Share            : 0.0% — Minority
+    Growth Rate      : +2.50%
+    Culture          : Pluralistic Human
+    Language         : Standard Human
+    Religion         : Secular
+    Loyalty          : 100.0 / 100
+    Happiness        : 0.0 / 100
+```
+# MILITARY
+## SPACEFLEET
+```
+    - Siegebreaker | x5 | Regular
+    - Battleship | x5 | Regular
+    - Heavy Cruiser | x6 | Regular
+    - Cruiser | x10 | Regular
+    - Light Cruiser | x20 | Regular
+    - Destroyer | x40 | Regular
+    - Frigate | x50 | Regular
+    - Corvette | x60 | Regular
+    - Dreadnaught | x10 | Regular
+    - Heavy Cruiser | x1 | Green | NPC auto-raised
+    - Carrier | x1 | Green | NPC auto-raised
+    - Heavy Cruiser | x1 | Regular | NPC auto-raised
+    - Carrier | x1 | Green | NPC auto-raised
+    - Destroyer | x1 | Green | NPC auto-raised
+```
+## AEROSPACE FORCES
+```
+    - Fighter Aircraft | x3500 | Regular
+    - Tactical Bomber | x3500 | Regular
+    - Strategic Bomber | x5000 | Regular
+    - Interceptor Wing | x1 | Green | NPC auto-raised
+    - Bomber Wing | x1 | Green | NPC auto-raised
+    - Bomber Wing | x1 | Green | NPC auto-raised
+```
+## GROUND FORCES
+```
+    - Infantry Division | x200 | Regular
+    - Marines Division | x150 | Regular
+    - Special Forces Division | x20 | Regular
+    - Marine Division | x1 | Green | NPC auto-raised
+    - Marine Division | x1 | Green | NPC auto-raised
+    - Marine Division | x1 | Green | NPC auto-raised
+    - Artillery Brigade | x1 | Green | NPC auto-raised
+    - Marine Division | x1 | Green | NPC auto-raised
+    - Artillery Brigade | x1 | Green | NPC auto-raised
+    - Marine Division | x1 | Green | NPC auto-raised
+```
+# ARSENAL
+```
+  None on record
+```
+## MANPOWER
+```
+  Pool       : 3.096B
+  Stored Pool: 17.730M
+```
+# RESEARCH
+```
+  RP per turn            : 0 cr
+  .000001 RP Cost        : 1 cr
+  ─────────────────────────────────────────────────────────
+  Active Projects:
+    None active
+  Completed Projects:
+    None completed
+```

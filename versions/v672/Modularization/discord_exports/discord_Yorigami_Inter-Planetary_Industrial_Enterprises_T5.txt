@@ -1,0 +1,240 @@
+-# [YIIE] YORIGAMI INTER-PLANETARY INDUSTRIAL ENTERPRISES
+# NATIONAL PROFILE - Q1 [2201]
+```
+  Species          : Human (0.0%)
+  Species          : Igyokkyan (0.0%)
+  Species          : Ranshoukzo (0.0%)
+  Population       : 15.225B
+  Pop Growth       : +1.50% / yr
+  Homeworld        : Yorigami Prime
+  Civilisation     : N/A
+  Tier             : N/A
+  Economic Model   : MARKET
+  Status           : Stable
+```
+# ECONOMY
+```
+  IPEU (base)      : 800.000 Bcr
+  IPEU Growth      : +2.50% / yr
+  IPEU per Capita  : 52 cr
+  Trade Revenue    : 0 cr
+   - Exports       : 0 cr
+   - Imports       : 0 cr
+   - Transit       : 0 cr
+  Local Mrket Tax  : 5.346 Bcr
+  Church Tithe     : -8.000 Bcr
+  Total Expenditure: 760.000 Bcr
+  Research Budget  : 0 cr / turn
+  Net Balance      : 37.346 Bcr
+```
+## EXPENDITURE & BREAKDOWN
+```
+  Military                  30.0%  ████████████████████  240.000 Bcr
+  Infrastructure            30.0%  ████████████████████  240.000 Bcr
+  Industry                  10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Agriculture               10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Population Development    10.0%  ███████░░░░░░░░░░░░░  80.000 Bcr
+  Others                     5.0%  ███░░░░░░░░░░░░░░░░░  40.000 Bcr
+  ─────────────────────────────────────────────────────────
+  TOTAL                     95.0%                        (760.000 Bcr)
+```
+### SPENDING EFFECTS
+```
+  Infra Trade Bonus      : +60.0% attractiveness
+  PopDev Growth          : +0.050% / yr
+  Military Morale        : +45.0%
+  Combat Power           : 0.240 Tcr  (10B cr = 1 CP)
+```
+# MARKET LOCAL PLANET OUTPUT
+```
+  Yorigami Prime              : Attr: 17.80  Tax: 0 cr
+  Subsidy Cost           : 0 cr
+  Investment             : 0 cr
+  Investment Bonus       : x1.050
+```
+## FISCAL REPORT
+```
+  Debtor / Creditor    : Creditor (GALACTIC TRADE CONFEDERATION)
+  Debt Balance         : 0 cr
+  Debt Load            : 0.0% of IPEU  ░░░░░░░░░░░░░░░░░░░░
+  Interest Rate        : 5.00%
+  Quarterly Int.       : 0 cr
+  Debt Repayment       : 0 cr
+  ─────────────────────────────────────────────────────────
+  Strategic Fund       : 160.000 Bcr
+  Fund increase / turn : +-0 cr
+```
+## RESOURCES & STOCKPILES
+```
+  Food Stockpile            : 3219.100B
+  Food Production per turn  : 40.000M
+  Food Consumption per turn : 15.199M
+  Food Net per turn         : +24.801M
+  Food Trend                : ▲
+  Food Export               : 0 cr
+```
+```
+  Minerals Stockpile            : 3.60K
+  Minerals Production per turn  : 40.000M
+  Minerals Consumption per turn : 34.000M
+  Minerals Net per turn         : +6.000M
+  Minerals Trend                : ▲
+  Minerals Export               : 0 cr
+```
+```
+  Energy Stockpile            : 2.00K
+  Energy Production per turn  : 40.000M
+  Energy Consumption per turn : 32.000M
+  Energy Net per turn         : +8.000M
+  Energy Trend                : ▲
+  Energy Export               : 0 cr
+```
+```
+  Alloys Stockpile            : 2.20K
+  Alloys Production per turn  : 26.000M
+  Alloys Consumption per turn : 445.00K
+  Alloys Net per turn         : +25.555M
+  Alloys Trend                : ▲
+  Alloys Export               : 0 cr
+```
+```
+  Consumer Goods Stockpile            : 2.20K
+  Consumer Goods Production per turn  : 12.000M
+  Consumer Goods Consumption per turn : 7.500M
+  Consumer Goods Net per turn         : +4.500M
+  Consumer Goods Trend                : ▲
+  Consumer Goods Export               : 0 cr
+```
+# TERRITORIES
+```
+  Home System: Yorigami System
+  Planets:
+      - Yorigami Prime Planet
+        Type          : ?
+        Size          : Huge
+        Habitability  : 36.8
+        Devastation   : 6.4%
+        Crime Rate    : 19.3%
+        Unrest        : 13.6%
+        Population    : 0
+    Yorigami Prime Alpha:
+      Population    : 920.000M
+      Settlements   : 3 districts
+        - Urban x1
+        - Power x1
+        - Industrial Civilian x1
+    Yorigami Prime Beta:
+      Population    : 920.000M
+      Settlements   : 6 districts
+        - Residential x2
+        - Mining x1
+        - Industrial Military x1
+        - Agricultural x1
+        - Military x1
+    Yorigami Prime Gamma:
+      Population    : 920.000M
+      Settlements   : 2 districts
+        - Mining x1
+        - Power x1
+```
+# NATIONAL DEMOGRAPHICS
+```
+  Total Population     : 15.225B
+  Loyalty Modifier     : +0.00
+```
+```
+  Human 👑
+    Population       : 0
+    Share            : 0.0% — Minority
+    Growth Rate      : +1.50%
+    Culture          : Naikkon
+    Language         : Naihongou
+    Religion         : Shintoism
+    Loyalty          : 80.0 / 100
+    Happiness        : 0.0 / 100
+```
+```
+  Igyokkyan 👑
+    Population       : 0
+    Share            : 0.0% — Minority
+    Growth Rate      : +3.00%
+    Culture          : Aynou
+    Language         : Fukuaynou
+    Religion         : Animism
+    Loyalty          : 60.0 / 100
+    Happiness        : 0.0 / 100
+```
+```
+  Ranshoukzo 👑
+    Population       : 0
+    Share            : 0.0% — Minority
+    Growth Rate      : +1.50%
+    Culture          : Hagorumou
+    Language         : Abehagoruma
+    Religion         : Orthodox Christianity
+    Loyalty          : 50.0 / 100
+    Happiness        : 0.0 / 100
+```
+# MILITARY
+## SPACEFLEET
+```
+    - Battlecruiser | x1 | Green
+    - Heavy Cruiser | x2 | Green
+    - Destroyer | x4 | Green
+    - Frigate | x6 | Green
+    - Corvette | x8 | Green
+    - Transport Vessel | x4 | Green
+    - Space patrol Vessels | x6 | Green
+```
+## AEROSPACE FORCES
+```
+    - Fighter Aircraft | x300 | Green
+    - Attack Aircraf | x200 | Green
+    - Strategic Bomber | x100 | Green
+```
+## GROUND FORCES
+```
+    - Infantry Division | x4 | Green
+    - Mechanized Division | x2 | Green
+    - Marine Division | x1 | Green
+```
+# ARSENAL
+```
+  None on record
+```
+## MANPOWER
+```
+  Pool       : 3.225B
+  Stored Pool: 585.000M
+```
+# RESEARCH
+```
+  RP per turn            : 0 cr
+  .000001 RP Cost        : 1 cr
+  ─────────────────────────────────────────────────────────
+  Active Projects:
+    None active
+  Completed Projects:
+    Industrial
+    Agricultural
+    Magitech-Dev
+```
+
+# CORPORATE
+Trust: ██████████░░░░░░░░░░ 50.0%
+Trust Value: 50.0%
+
+# CORPORATE ENTERPRISES
+```
+Base (IPEU * rate * trust)          : 0 cr
+Location Income                     : 0 cr
+Active Contracts                    : 0 cr
+Product Sales Income                : 0 cr
+Service Income                      : 0 cr
+------------------------------------------------------
+TOTAL per turn                      : 0 cr
+Market Capacity                     : 0 cr
+```
+
+# CORPORATE EVENT LOG
+No events recorded.

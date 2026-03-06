@@ -1,0 +1,3304 @@
+#!/usr/bin/env python3
+"""
+Carmine NRP Engine - vAlpha0.6.7
+New in 0.6.3: monetary loop fix (trade net credited to strategic_fund each turn),
+              route_modifier applied, export_by_resource fix, discord tithe_in,
+              compute_resource_export_credits uses net-of-piracy value
+"""
+import sys, os, json, shutil, math, time, random
+import pygame
+from corporateAlpha0671 import (
+    init_corp_module, compute_corp_income, compute_corp_market_cap,
+    compute_corp_factory_output, compute_corp_store_sales,
+    roll_corp_events, discord_corp_profile, build_corp_rows,
+    ContractBuilderOverlay, LocationBuilderOverlay, LocationSearcherOverlay,
+    ShareholderBuilderOverlay, CorpEventBuilderOverlay, CorpGraphOverlay,
+    TIER_MULT as _TIER_MULT,
+)
+from pathlib import Path
+
+DEFAULT_STATE = str(Path(__file__).parent / "carmine_state_T5_Y2201Q1.json")
+BACKUP_COUNT  = 5
+DISCORD_DIR   = Path(__file__).parent / "discord_exports"
+SW, SH        = 1280, 720
+LWIDTH        = 240
+TBAR_H        = 40
+TABBAR_H      = 30
+SBAR_H        = 22
+FPS           = 60
+MAIN_X = LWIDTH; MAIN_Y = TBAR_H + TABBAR_H
+MAIN_W = SW - LWIDTH; MAIN_H = SH - TBAR_H - TABBAR_H - SBAR_H
+TABS         = ["OVERVIEW","ECONOMY","MILITARY","TERRITORY","MARKET","GALACTIC","EVENTS"]
+TABS_COLONY  = ["OVERVIEW","COLONY","MILITARY","TERRITORY","MARKET","GALACTIC","EVENTS"]
+TABS_CORP    = ["OVERVIEW","ECONOMY","MILITARY","TERRITORY","MARKET","GALACTIC","CORP","EVENTS"]
+GALACTIC_SUBS= ["OVERVIEW","PRICE REPORT"]
+GSUB_H       = 22   # height of the galactic subtab bar
+PLAYER_NATIONS = {"Regnum Dei","Zenith Collective","Imperium Poenus Lunaria",
+                  "Yorigami Inter-Planetary Industrial Enterprises","Union of the Red Horizon"}
+
+BG=(8,12,20);PANEL=(12,18,28);BORDER=(28,52,80);BORDER2=(44,86,128);ACCENT=(190,38,25)
+CYAN=(0,190,214);TEAL=(0,138,158);TEXT=(198,226,246);DIM=(84,114,136);DIM2=(50,72,92)
+BRIGHT=(238,248,255);GREEN=(22,184,82);RED_C=(216,54,40);GOLD=(198,150,22)
+SEL=(18,40,65);HOVER=(14,30,50);EDITBG=(5,14,28);EDITBDR=(0,172,194)
+BTNBG=(18,36,56);BTNHOV=(28,54,82);BTNACC=(140,24,16);BTNACC2=(190,38,25)
+PURPLE=(130,60,200);ORANGE=(200,100,30);LIME=(120,220,60)
+
+# ── formatting ────────────────────────────────────────────────────────────────
+def fmt_cr(v):
+    if v is None: return chr(8212)
+    a=abs(v)
+    if a>=1e15: return f"{v/1e15:.3f} Qcr"
+    if a>=1e12: return f"{v/1e12:.3f} Tcr"
+    if a>=1e9:  return f"{v/1e9:.3f} Bcr"
+    if a>=1e6:  return f"{v/1e6:.3f} Mcr"
+    if a>=1e3:  return f"{v/1e3:.2f} Kcr"
+    return f"{v:.0f} cr"
+def fmt_pop(v):
+    if v is None: return chr(8212)
+    a=abs(v)
+    if a>=1e9: return f"{v/1e9:.3f}B"
+    if a>=1e6: return f"{v/1e6:.3f}M"
+    if a>=1e3: return f"{v/1e3:.2f}K"
+    return f"{v:.0f}"
+def fmt_res(v):
+    if v is None: return chr(8212)
+    a=abs(v)
+    if a>=1e9: return f"{v/1e9:.3f}B"
+    if a>=1e6: return f"{v/1e6:.3f}M"
+    if a>=1e3: return f"{v/1e3:.2f}K"
+    return f"{v:.2f}"
+def fmt_pct(v): return f"{v*100:+.2f}%" if v!=0 else "0.00%"
+def bar_str(pct,w=18):
+    pct=max(0.0,min(1.0,pct)); f=round(pct*w)
+    return "█"*f+"░"*(w-f)
+def nation_tag(name):
+    words=name.split()
+    if len(words)>=2: return "".join(w[0].upper() for w in words[:4])
+    return name[:4].upper()
+
+_RESOURCES=["Food","Minerals","Energy","Alloys","Consumer Goods"]
+RES_BASE_PRICE={"Food":1.0,"Minerals":2.0,"Energy":4.0,"Alloys":5.0,"Consumer Goods":2.0}
+ECON_MODELS=["PLANNED","MARKET","MIXED","COLONY_START"]
+
+# ── district & platform production tables ─────────────────────────────────────
+DISTRICT_PROD={
+    "Farming":            {"Food":50e6},
+    "Agricultural":       {"Food":40e6},
+    "Mining":             {"Minerals":20e6},
+    "Industrial Civilian":{"Alloys":8e6,"Consumer Goods":12e6},
+    "Industrial Military":{"Alloys":18e6},
+    "Energy Plant":       {"Energy":25e6},
+    "Power":              {"Energy":20e6},
+    "Urban":{}, "Residential":{}, "Military":{}, "Research Lab":{},
+}
+DISTRICT_CONS={
+    "Farming":            {"Energy":2e6},
+    "Agricultural":       {"Energy":1e6},
+    "Mining":             {"Energy":4e6},
+    "Industrial Civilian":{"Minerals":10e6,"Energy":8e6},
+    "Industrial Military":{"Minerals":20e6,"Energy":12e6},
+    "Energy Plant":       {"Minerals":3e6},
+    "Power":              {"Minerals":2e6},
+}
+DISTRICT_MINERAL_COST={"Farming":20,"Agricultural":15,"Mining":30,"Industrial Civilian":40,
+    "Industrial Military":60,"Energy Plant":35,"Power":25,"Urban":10,"Residential":8,
+    "Military":50,"Research Lab":45}
+DISTRICT_BUILD_TURNS={"Farming":2,"Agricultural":2,"Mining":3,"Industrial Civilian":4,
+    "Industrial Military":5,"Energy Plant":3,"Power":2,"Urban":2,"Residential":1,
+    "Military":4,"Research Lab":5}
+PLATFORM_PROD={"Mining":{"Minerals":30e6},"Hydroponics":{"Food":60e6},"Research":{},"Dockyards":{}}
+
+# ── military consumption tables ───────────────────────────────────────────────
+# Food = crew headcount, Alloys = per unit (not per count)
+UNIT_CREW = {
+    "Siegebreaker":85000,"World Cracker":85000,"Dreadnaughts":50000,"Dreadnaught":50000,
+    "Battleship":50000,"Battlecruiser":45000,"Heavy Cruiser":40000,"Cruiser":35000,
+    "Light Cruiser":10000,"Destroyer":500,"Frigate":150,"Corvette":50,
+    "Space patrol Vessels":10,"Space Patrol Vessel":10,"Shipyard Tender":50000,
+    "Transport Vessel":10,"Dockyard":100000,
+    "Fighter Aircraft":1,"Fighter Aircrafts":1,"Tactical Bomber":4,"Strategic Bomber":4,
+    "Strategic Bombers":4,"Attack Aircraft":2,"Reconnaissance & Surveillance Aircraft":2,
+    "Unmanned Aerial Vehicle":0,"Tanker Aircraft":2,"Gunship":5,"Transport Aircraft":10,
+}
+UNIT_ALLOY_CON = {
+    "Siegebreaker":100000,"World Cracker":100000,"Dreadnaughts":50000,"Dreadnaught":50000,
+    "Battleship":50000,"Battlecruiser":45000,"Heavy Cruiser":30000,"Cruiser":20000,
+    "Light Cruiser":10000,"Destroyer":5000,"Frigate":2500,"Corvette":1000,
+    "Space patrol Vessels":500,"Space Patrol Vessel":500,"Shipyard Tender":50000,
+    "Transport Vessel":50000,"Dockyard":50000,
+    "Fighter Aircraft":100,"Fighter Aircrafts":100,"Tactical Bomber":250,"Strategic Bomber":500,
+    "Strategic Bombers":500,"Attack Aircraft":300,"Reconnaissance & Surveillance Aircraft":80,
+    "Unmanned Aerial Vehicle":50,"Tanker Aircraft":300,"Gunship":250,"Transport Aircraft":250,
+}
+GROUND_DIVISION_SIZE = 10000  # soldiers per division
+GROUND_FOOD_PER_SOLDIER = 1   # food units per soldier per turn
+GROUND_ALLOY_PER_DIVISION = 2000  # alloys per division per turn
+
+# ── colony event table ────────────────────────────────────────────────────────
+_COLONY_EVENTS=[
+    (1,1,"Catastrophic Failure",{"colonization_pct":(-15,-10),"pop_change":(-0.20,-0.10)},RED_C),
+    (2,3,"Supply Shortage",{"colonization_pct":(-5,-2)},  (200,80,40)),
+    (4,5,"Harsh Conditions",{"colonization_pct":(-3,-1)}, GOLD),
+    (6,10,"Steady Progress",{"colonization_pct":(1,3)},   DIM),
+    (11,15,"Good Survey",{"colonization_pct":(2,5)},      GREEN),
+    (16,18,"Resource Discovery",{"colonization_pct":(3,6),"mineral_bonus":(10,30)}, CYAN),
+    (19,19,"Population Surge",{"colonization_pct":(2,4),"pop_change":(0.05,0.15)}, GREEN),
+    (20,20,"Golden Founding",{"colonization_pct":(5,10),"pop_change":(0.10,0.20),"mineral_bonus":(20,50)}, GOLD),
+]
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+def years_elapsed(state): return (state.get("turn",1)-1)*0.25
+
+def _avg_loyalty(nation):
+    sp=nation.get("species_populations") or []
+    if not sp: return 50.0
+    total=sum(s.get("population",0) for s in sp) or 1
+    return sum(s.get("loyalty",50)*s.get("population",0) for s in sp)/total
+
+def is_colony(nation): return bool(nation.get("is_colony_start"))
+
+def get_tabs(nation):
+    if is_colony(nation): return TABS_COLONY
+    if nation.get("is_megacorp") or "corporate_data" in nation: return TABS_CORP
+    return TABS
+
+# ── unit builder tables ──────────────────────────────────────────────────────
+_UNIT_CATS=["Spacefleet","Aerospace","Ground Forces"]
+# Normalise JSON category aliases to canonical _UNIT_CATS values
+_CAT_NORM={"Navy":"Spacefleet","Spacefleet":"Spacefleet",
+           "Air Force":"Aerospace","Aerospace":"Aerospace",
+           "Ground Forces":"Ground Forces","Ground":"Ground Forces","Army":"Ground Forces"}
+# _TIER_MULT and _CORP_EV_TABLE moved to corporateAlpha0671.py
+_UNIT_TYPES_BY_CAT={
+    "Spacefleet":["Corvette","Frigate","Destroyer","Light Cruiser","Cruiser","Heavy Cruiser",
+                  "Battlecruiser","Battleship","Dreadnaught","Siegebreaker","Transport Vessel",
+                  "Shipyard Tender","Space patrol Vessels"],
+    "Aerospace":["Fighter Aircraft","Tactical Bomber","Strategic Bomber","Attack Aircraft",
+                 "Reconnaissance & Surveillance Aircraft","Unmanned Aerial Vehicle",
+                 "Tanker Aircraft","Gunship","Transport Aircraft"],
+    "Ground Forces":["Infantry Division","Armored Division","Artillery Division",
+                     "Marines Division","Special Forces Division"],
+}
+_UNIT_VETERANCY=["Green","Regular","Veteran","Elite","Legendary"]
+
+# compute_corp_income/market_cap/roll_corp_events moved to corporateAlpha0671.py
+
+# ── military consumption ──────────────────────────────────────────────────────
+def compute_military_consumption(nation):
+    """Returns {"Food": X, "Alloys": Y} consumed per turn by all units."""
+    food=0.0; alloys=0.0
+    for u in (nation.get("active_forces_detail") or []):
+        unit_name=u.get("unit",""); count=u.get("count",1)
+        cat=u.get("category","")
+        if cat in ("Ground Forces","Ground","Army"):
+            soldiers=count*GROUND_DIVISION_SIZE
+            food+=soldiers*GROUND_FOOD_PER_SOLDIER
+            alloys+=count*GROUND_ALLOY_PER_DIVISION
+        else:
+            crew=UNIT_CREW.get(unit_name,0)
+            alloy=UNIT_ALLOY_CON.get(unit_name,0)
+            food+=crew*count
+            alloys+=alloy*count
+    return {"Food":food,"Alloys":alloys}
+
+# ── manpower ──────────────────────────────────────────────────────────────────
+def compute_manpower(nation):
+    """Returns total manpower pool from all species based on conscription/volunteer rates."""
+    pop=nation.get("population",0.0)
+    total=0.0
+    for s in (nation.get("species_populations") or []):
+        sp_pop=s.get("population",0)
+        loy=s.get("loyalty",50)
+        conscript_rate=s.get("conscription_rate", nation.get("conscription_rate",0.05))
+        vol_rate=max(0, (loy-40)/200.0)  # loyalty>40 starts generating volunteers
+        gm_adj=s.get("gm_manpower_adj",0.0)
+        total+=sp_pop*(conscript_rate+vol_rate)+gm_adj
+    override=nation.get("manpower_cap_override",0.0)
+    return override if override>0 else total
+
+# ── church tithe ─────────────────────────────────────────────────────────────
+CHRISTIAN_KEYWORDS=["christian","catholic","protestant","orthodox","evangelical","church"]
+TITHE_RATE=0.10
+
+def compute_church_tithe(nation, state):
+    """Returns tithe amount this nation owes to Regnum Dei (0 if not applicable)."""
+    rd=next((n for n in state.get("nations",[]) if n["name"]=="Regnum Dei"),None)
+    if not rd or nation["name"]=="Regnum Dei": return 0.0
+    ipeu=nation.get("base_ipeu",0.0)
+    pop=nation.get("population",1.0)
+    christian_pop=0.0
+    for s in (nation.get("species_populations") or []):
+        rel=(s.get("religion") or "").lower()
+        if any(k in rel for k in CHRISTIAN_KEYWORDS):
+            christian_pop+=s.get("population",0)
+    if christian_pop<=0: return 0.0
+    christian_share=christian_pop/pop if pop else 0
+    return ipeu*christian_share*TITHE_RATE
+
+def apply_tithes(state):
+    """Called each turn advance — transfers tithe from all nations to Regnum Dei."""
+    rd=next((n for n in state.get("nations",[]) if n["name"]=="Regnum Dei"),None)
+    if not rd: return []
+    events=[]; turn=state.get("turn",1); year=state.get("year",2200); q=state.get("quarter",1)
+    total_tithe=0.0
+    for nation in state.get("nations",[]):
+        if nation["name"]=="Regnum Dei": continue
+        tithe=compute_church_tithe(nation,state)
+        if tithe>0:
+            nation["strategic_fund"]=nation.get("strategic_fund",0.0)-tithe
+            total_tithe+=tithe
+            events.append({"turn":turn,"year":year,"quarter":q,"type":"Tithe",
+                "nation":nation["name"],"roll":"—","label":"Church Tithe",
+                "description":f"{nation['name']} paid {fmt_cr(tithe)} tithe to Regnum Dei",
+                "col_rgb":list(GOLD)})
+    if total_tithe>0:
+        rd["strategic_fund"]=rd.get("strategic_fund",0.0)+total_tithe
+    return events
+def compute_tithe_income(nation, state):
+    """Returns total tithe credits this nation RECEIVES (non-zero only for Regnum Dei)."""
+    if nation["name"] != "Regnum Dei": return 0.0
+    return sum(compute_church_tithe(n, state) for n in state.get("nations",[]) if n["name"] != "Regnum Dei")
+
+
+# ── district resources ────────────────────────────────────────────────────────
+def compute_district_resources(nation):
+    prod={r:0.0 for r in _RESOURCES}; cons={r:0.0 for r in _RESOURCES}
+    econ=(nation.get("economic_model") or "MIXED").upper()
+    loy=_avg_loyalty(nation)
+    res_eff=1.0+(max(0,loy-50)/200.0) if econ=="PLANNED" else 1.0
+    for sys in (nation.get("star_systems") or []):
+        for planet in (sys.get("planets") or []):
+            for sett in (planet.get("settlements") or []):
+                for d in (sett.get("districts") or []):
+                    if d.get("status","").lower() not in ("operational","active",""): continue
+                    dt=d.get("type","")
+                    for r,amt in DISTRICT_PROD.get(dt,{}).items(): prod[r]+=amt*res_eff
+                    for r,amt in DISTRICT_CONS.get(dt,{}).items(): cons[r]+=amt
+            for plat in (planet.get("platforms") or []):
+                for r,amt in PLATFORM_PROD.get(plat.get("type",""),{}).items(): prod[r]+=amt
+    return prod,cons
+
+def _pop_cons(rname,pop):
+    return pop*{"Food":0.001,"Consumer Goods":0.0005,"Energy":0.0002}.get(rname,0.0)
+
+def compute_resources(nation,ipeu):
+    exp=nation.get("expenditure",{}) if isinstance(nation.get("expenditure"),dict) else {}
+    pop=nation.get("population",1.0)
+    d_prod,d_cons=compute_district_resources(nation)
+    mil_cons=compute_military_consumption(nation)
+    out={}
+    for rname in _RESOURCES:
+        sd=(nation.get("resource_stockpiles") or {}).get(rname,{})
+        if not isinstance(sd,dict): sd={}
+        stock=sd.get("stockpile",0.0)
+        if sd.get("production_mode")=="flat":
+            prod=sd.get("flat_production",0.0); cons=sd.get("flat_consumption",0.0)
+        elif d_prod.get(rname,0)>0 or d_cons.get(rname,0)>0:
+            prod=d_prod[rname]; cons=d_cons[rname]+_pop_cons(rname,pop)
+        else:
+            agri=exp.get("Agriculture",0.0)*ipeu; ind=exp.get("Industry",0.0)*ipeu
+            if rname=="Food":
+                prod=agri*nation.get("food_efficiency",1.0)/1e6; cons=pop*nation.get("food_consumption_rate",0.01)
+            elif rname=="Minerals":
+                prod=ind*nation.get("mineral_workforce_pct",0.05)*nation.get("mineral_ipeu_factor",0.5)/1e3; cons=prod*0.4
+            elif rname=="Energy":
+                prod=ind*0.002/1e3; cons=prod*0.6
+            elif rname=="Alloys":
+                prod=ind*nation.get("mineral_to_alloy_ratio",0.0)*0.001/1e3; cons=prod*0.3
+            else:
+                prod=ind*nation.get("cg_efficiency",0.8)*0.0005/1e3; cons=pop*nation.get("cg_consumption_rate",0.005)
+        # add military consumption on top
+        cons+=mil_cons.get(rname,0.0)
+        net=prod-cons
+        out[rname]={"stockpile":stock,"production":prod,"consumption":cons,"net":net,
+                    "trend":"▲" if net>0 else ("▼" if net<0 else "─"),
+                    "mil_consumption":mil_cons.get(rname,0.0)}
+    return out
+
+# ── colony resource handling ──────────────────────────────────────────────────
+def compute_vessel_resources(nation):
+    vs=nation.get("vessel_stats",{}); vsp=nation.get("vessel_stockpiles",{})
+    out={}
+    for rname in ["Food","Minerals","Alloys","Energy"]:
+        prod_key={"Food":"food_production","Minerals":"mineral_extraction",
+                  "Alloys":"alloy_production","Energy":"energy_production"}.get(rname,"")
+        cons_key={"Food":"food_consumption","Energy":"energy_consumption"}.get(rname,"")
+        prod=vs.get(prod_key,0.0); cons=vs.get(cons_key,0.0) if cons_key else 0.0
+        stock=vsp.get(rname,0.0); net=prod-cons
+        out[rname]={"stockpile":stock,"production":prod,"consumption":cons,"net":net,
+                    "trend":"▲" if net>0 else ("▼" if net<0 else "─")}
+    return out
+
+def get_colony_progress(nation):
+    """Returns list of (planet_name, colonization_pct) across all planets."""
+    result=[]
+    for sys in (nation.get("star_systems") or []):
+        for p in (sys.get("planets") or []):
+            result.append({"planet":p.get("name","?"),"colonization_pct":p.get("colonization_pct",0.0),
+                           "explored_pct":p.get("explored_pct",0.0),
+                           "pop":p.get("pop_assigned",0),"system":sys.get("name","?")})
+    return result
+
+# ── loyalty / happiness formulas ──────────────────────────────────────────────
+def compute_species_loyalty_happiness(nation,res):
+    sp=nation.get("species_populations") or []
+    if not sp: return
+    exp=nation.get("expenditure") or {}
+    pop_dev=exp.get("Population Development",0.0); infra=exp.get("Infrastructure",0.0)
+    pop_dev_bonus=pop_dev*30; infra_hap=infra*20
+    cg_stock=(res.get("Consumer Goods") or {}).get("stockpile",0.0)
+    pop=nation.get("population",1.0); cg_per_cap=cg_stock/pop if pop else 0
+    cg_factor=min(1.5,0.5+cg_per_cap*1e-4)
+    total_unrest=total_crime=planet_count=0
+    for sys in (nation.get("star_systems") or []):
+        for p in (sys.get("planets") or []):
+            total_unrest+=p.get("unrest",0.0); total_crime+=p.get("crime_rate",0.0); planet_count+=1
+    avg_unrest=total_unrest/planet_count if planet_count else 0
+    avg_crime=total_crime/planet_count if planet_count else 0
+    econ=(nation.get("economic_model") or "MIXED").upper()
+    dist_bonus=5.0 if econ=="PLANNED" else 0.0
+    for s in sp:
+        base_loy=s.get("_base_loyalty",s.get("loyalty",50)); s["_base_loyalty"]=base_loy
+        s["loyalty"]=round(max(0,min(100,base_loy*cg_factor/(1+avg_unrest/100)+pop_dev_bonus+dist_bonus)),1)
+        base_hap=s.get("_base_happiness",50.0)
+        if isinstance(s.get("happiness"),(int,float)): base_hap=s["happiness"]; s["_base_happiness"]=base_hap
+        s["happiness"]=round(max(0,min(100,base_hap*cg_factor/(1+avg_crime/100+avg_unrest/100)+infra_hap+dist_bonus)),1)
+
+def compute_resource_export_credits(nation,state):
+    name=nation["name"]; ec={r:0.0 for r in _RESOURCES}
+    for route in state.get("trade_routes",[]):
+        if route.get("status")!="active" or route.get("exporter")!=name: continue
+        r=route.get("resource","")
+        # use net-of-piracy, net-of-transit-tax value (mirrors compute_trade exporter earnings)
+        if r not in ec: continue
+        cr=route.get("credits_per_turn",0.0)*(1.0+route.get("route_modifier",0.0))
+        loss=route.get("_piracy_loss_this_turn",0.0); net_cr=cr-loss
+        ts=route.get("transit_nations",[])
+        tax=sum(cr*t.get("tax_rate",0.0) for t in ts if t.get("status")=="active")
+        ec[r]+=net_cr-tax
+    return ec
+
+def compute_planet_local_market(nation,state,ipeu):
+    econ=(nation.get("economic_model") or "MIXED").upper()
+    if econ in ("PLANNED","COLONY_START"): return [],0.0
+    exp=nation.get("expenditure") or {}
+    infra_bonus=exp.get("Infrastructure",0.0)*1.5
+    tax_rate=0.15 if econ=="MARKET" else 0.10
+    results=[]; total_tax=0.0
+    for sys in (nation.get("star_systems") or []):
+        for planet in (sys.get("planets") or []):
+            attract=max(0,planet.get("habitability",50)-planet.get("devastation",0)
+                        -planet.get("unrest",0)*0.5-planet.get("crime_rate",0)*0.3)
+            local=planet.get("pop_assigned",0)*50.0*(attract/100.0)*(1+infra_bonus)
+            tax=local*tax_rate; total_tax+=tax
+            results.append({"planet":planet.get("name","?"),"attractiveness":round(attract,1),
+                            "local_output":local,"tax_income":tax})
+    return results,total_tax
+
+def compute_subsidies(nation,ipeu):
+    econ=(nation.get("economic_model") or "MIXED").upper()
+    if econ in ("PLANNED","COLONY_START"): return 0.0,0.0
+    return nation.get("subsidy_rate",0.0)*ipeu, nation.get("investment_rate",0.0)*20.0
+
+def spending_effects(nation,ipeu):
+    exp=nation.get("expenditure") or {}
+    infra=exp.get("Infrastructure",0.0); popdev=exp.get("Population Development",0.0); mil=exp.get("Military",0.0)
+    return {"infra_trade_bonus":round(infra*200,1),"infra_distrib_speed":round(infra*3,2),
+            "popdev_growth_bonus":round(popdev*0.5,3),"mil_morale_bonus":round(mil*150,1),
+            "mil_combat_power":round(mil*ipeu/1e12,3)}
+
+def econ_model_ipeu_modifier(nation):
+    econ=(nation.get("economic_model") or "MIXED").upper()
+    loy=_avg_loyalty(nation)
+    if econ=="PLANNED":   return nation.get("bureaucratic_efficiency",1.0)+(loy-50)/200.0
+    elif econ=="MARKET":  return 1.05
+    elif econ=="COLONY_START": return 0.80
+    return 1.02  # MIXED
+
+def compute_debt(nation,ipeu):
+    bal=nation.get("debt_balance",0.0); rate=nation.get("interest_rate",0.0); rep=nation.get("debt_repayment",0.0)
+    qi=bal*rate/4.0 if bal>0 else 0.0
+    return {"balance":bal,"rate":rate,"repayment":rep,"q_interest":qi,
+            "load_pct":(bal/ipeu*100) if ipeu else 0.0,"is_debtor":bal>0}
+
+def compute_gtc_debt(nation,state):
+    """Return this nation's GTC debt entry, or empty dict if none."""
+    ledger=state.get("market",{}).get("gtc",{}).get("debt_ledger",{})
+    return ledger.get(nation["name"],{})
+
+def apply_gtc_debt_service(state):
+    """Accrue quarterly GTC interest & deduct from debtor, credit to Trade Confederation. Returns event list."""
+    evs=[]; turn=state.get("turn",1); year=state.get("year",2200); q=state.get("quarter",1)
+    ledger=state.setdefault("market",{}).setdefault("gtc",{}).setdefault("debt_ledger",{})
+    nation_map={n["name"]:n for n in state.get("nations",[])}
+    gtc_nation=nation_map.get("Trade Confederation")
+    total_collected=0.0
+    for nname,entry in list(ledger.items()):
+        bal=entry.get("balance",0.0)
+        if bal<=0: continue
+        rate=entry.get("interest_rate",0.04); rep=entry.get("repayment",0.0)
+        qi=bal*rate/4.0; new_bal=max(0.0,bal+qi-rep)
+        entry["balance"]=new_bal
+        n=nation_map.get(nname)
+        if n: n["strategic_fund"]=n.get("strategic_fund",0.0)-qi
+        total_collected+=qi
+        evs.append({"turn":turn,"year":year,"quarter":q,"type":"GTC",
+                    "description":f"{nname} GTC interest: {fmt_cr(qi)} (bal {fmt_cr(new_bal)})",
+                    "col_rgb":[198,150,22]})
+    if gtc_nation and total_collected>0:
+        gtc_nation["strategic_fund"]=gtc_nation.get("strategic_fund",0.0)+total_collected
+    return evs
+
+def compute_trade(nation,routes):
+    name=nation["name"]; exports=imports=transit=0.0; ed={r:0.0 for r in _RESOURCES}
+    for r in routes:
+        if r.get("status")!="active": continue
+        cr=r.get("credits_per_turn",0.0)*(1.0+r.get("route_modifier",0.0))  # apply route modifier
+        loss=r.get("_piracy_loss_this_turn",0.0); net_cr=cr-loss
+        ts=r.get("transit_nations",[])
+        if r["exporter"]==name:
+            tax=sum(cr*t.get("tax_rate",0.0) for t in ts if t.get("status")=="active")
+            earns=net_cr-tax; exports+=earns; res=r.get("resource","")
+            if res in ed: ed[res]+=earns  # track actual post-tax, post-piracy earnings
+        if r["importer"]==name: imports+=net_cr
+        for t in ts:
+            if t.get("nation")==name and t.get("status")=="active": transit+=cr*t.get("tax_rate",0.0)
+    return {"exports":exports,"imports":imports,"transit_income":transit,"net":exports-imports+transit,"export_by_resource":ed}
+
+def compute_galactic_stockpiles(state):
+    totals={r:0.0 for r in _RESOURCES}; prod={r:0.0 for r in _RESOURCES}; cons={r:0.0 for r in _RESOURCES}
+    for nation in state.get("nations",[]):
+        res=compute_resources(nation,nation.get("base_ipeu",0.0))
+        for r in _RESOURCES:
+            totals[r]+=res[r]["stockpile"]; prod[r]+=res[r]["production"]; cons[r]+=res[r]["consumption"]
+    return totals,prod,cons
+
+def price_shock_delta(rname,gprod,gcons,curr,base):
+    if gcons<=0: return 0.0
+    ratio=gprod/gcons
+    if ratio>1.2:  return -0.05
+    elif ratio>1.05: return -0.02
+    elif ratio>0.95: return 0.0
+    elif ratio>0.8:  return 0.03
+    return 0.08
+
+_SUPPLY_LABELS=[(1.2,"heavy surplus"),(1.05,"mild surplus"),(0.95,"balanced"),(0.8,"mild shortage"),(0.0,"severe shortage")]
+def _price_explain(rname,ratio,label,delta,curr,base):
+    """Return a plain-English market commentary string."""
+    sup=next(l for t,l in _SUPPLY_LABELS if ratio>=t)
+    direction="risen" if delta>0.01 else ("fallen" if delta<-0.01 else "held steady")
+    shock_note=f" — {label.lower()} shock this quarter" if label not in ("Stable","") else ""
+    return f"{rname} supply/demand {sup} (S/D {ratio:.2f}). Price has {direction}{shock_note}."
+
+# ── construction queue ────────────────────────────────────────────────────────
+def advance_construction(nation,state):
+    """Tick all in-progress construction items. Returns list of completion events."""
+    events=[]; turn=state.get("turn",1); year=state.get("year",2200); q=state.get("quarter",1)
+    queue=nation.get("construction_queue") or []
+    still_building=[]
+    for item in queue:
+        item["turns_remaining"]=item.get("turns_remaining",1)-1
+        if item["turns_remaining"]<=0:
+            # place the district
+            si=item.get("si",0); pi=item.get("pi",0); sett_i=item.get("sett_i",0)
+            try:
+                planet=nation["star_systems"][si]["planets"][pi]
+                sett=planet["settlements"][sett_i]
+                sett.setdefault("districts",[]).append({"type":item["district_type"],"status":"Operational","notes":"","built_turn":turn,"workforce":0})
+                events.append({"turn":turn,"year":year,"quarter":q,"type":"Construction","nation":nation["name"],
+                    "roll":"—","label":"Build Complete",
+                    "description":f"{item['district_type']} completed on {planet.get('name','?')} ({item.get('settlement_name','?')})",
+                    "col_rgb":list(LIME)})
+            except (IndexError,KeyError): pass
+        else:
+            still_building.append(item)
+    nation["construction_queue"]=still_building
+    return events
+
+def queue_construction(nation,si,pi,sett_i,district_type,state):
+    """Add a construction job. Returns (ok, message)."""
+    mcost=DISTRICT_MINERAL_COST.get(district_type,20)
+    sp=nation.get("resource_stockpiles",{})
+    minerals=sp.get("Minerals",{}).get("stockpile",0.0) if isinstance(sp.get("Minerals"),dict) else 0.0
+    if minerals<mcost: return False,f"Need {mcost} Minerals, have {fmt_res(minerals)}"
+    # deduct minerals
+    if isinstance(sp.get("Minerals"),dict): sp["Minerals"]["stockpile"]-=mcost
+    turns=DISTRICT_BUILD_TURNS.get(district_type,3)
+    try: sname=nation["star_systems"][si]["planets"][pi]["settlements"][sett_i].get("name","?")
+    except: sname="?"
+    nation.setdefault("construction_queue",[]).append({
+        "district_type":district_type,"si":si,"pi":pi,"sett_i":sett_i,
+        "turns_remaining":turns,"settlement_name":sname,"mineral_cost":mcost})
+    return True,f"Queued {district_type} ({turns} turns, {mcost} Minerals)"
+
+# ── piracy ────────────────────────────────────────────────────────────────────
+_PIRACY_DIST={"near":0.05,"kind of far":0.12,"too far":0.22}
+def roll_piracy_events(state):
+    evs=[]; turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    for route in state.get("trade_routes",[]):
+        if route.get("status")!="active": continue
+        chance=max(0,_PIRACY_DIST.get(route.get("pirate_distance","near").lower(),0.05)
+                   -int(route.get("pirate_escort","0") or 0)*0.01)
+        if random.random()<chance:
+            cpt=route.get("credits_per_turn",0.0); pct=random.uniform(0.10,0.40); stolen=cpt*pct
+            route["pirate_incidents"]=route.get("pirate_incidents",0)+1
+            route["total_pirated"]=route.get("total_pirated",0.0)+stolen
+            route["_piracy_loss_this_turn"]=stolen
+            evs.append({"turn":turn,"year":year,"quarter":q,"type":"Piracy",
+                        "nation":route.get("exporter","?"),"roll":round(chance*100,1),
+                        "label":f"Piracy on {route.get('name','?')}",
+                        "description":f"{route.get('name','?')}: {pct:.0%} stolen = {fmt_cr(stolen)}",
+                        "col_rgb":list(RED_C)})
+        else: route["_piracy_loss_this_turn"]=0.0
+    return evs
+
+# ── standard event tables ─────────────────────────────────────────────────────
+_MARKET_SHOCK=[(1,2,"MARKET CRASH",(-0.50,-0.30),RED_C),(3,5,"Price Drop",(-0.20,-0.10),(200,80,40)),
+               (6,15,"Stable",(0.0,0.0),DIM),(16,18,"Price Surge",(0.10,0.20),GREEN),(19,20,"MARKET BOOM",(0.30,0.50),GOLD)]
+_PLANETSIDE=[(1,1,"Natural Disaster",{"devastation":(5,15),"unrest":(10,20)},RED_C),
+             (2,3,"Infrastructure Fail",{"crime_rate":(5,10)},(200,80,40)),
+             (4,6,"Minor Unrest",{"unrest":(5,15)},GOLD),(7,14,"Stable",{},DIM),
+             (15,16,"Pop Boom",{},GREEN),(17,18,"Crime Crackdown",{"crime_rate":(-10,-5)},CYAN),
+             (19,19,"Infrastructure Boom",{"unrest":(-10,-5)},CYAN),
+             (20,20,"Golden Age",{"unrest":(-15,-10),"crime_rate":(-10,-5)},GOLD)]
+_RESOURCE_EV=[(1,2,"Resource Depletion","flat_production",(-0.30,-0.15),RED_C),
+              (3,5,"Extraction Issues","flat_production",(-0.15,-0.05),(200,80,40)),
+              (6,15,"Normal Output",None,(0.0,0.0),DIM),(16,18,"Rich Vein","flat_production",(0.10,0.25),GREEN),
+              (19,20,"Motherlode","flat_production",(0.25,0.50),GOLD)]
+_CIVIC=[(1,2,"Mass Exodus","loyalty",(-20,-10),RED_C),(3,5,"Civic Unrest","loyalty",(-12,-5),(200,80,40)),
+        (6,8,"Protests","loyalty",(-5,-2),GOLD),(9,14,"Civic Stability",None,(0,0),DIM),
+        (15,17,"Community Programs","loyalty",(3,6),GREEN),(18,19,"Cultural Festival","loyalty",(5,10),CYAN),
+        (20,20,"Loyalty Surge","loyalty",(10,20),GOLD)]
+
+def _d20(): return random.randint(1,20)
+def _lookup(table,roll):
+    for row in table:
+        if row[0]<=roll<=row[1]: return row
+    return table[len(table)//2]
+
+def roll_market_events(state):
+    market=state.get("market",{}); mods=market.get("market_modifier",{})
+    evs=[]; turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    gal_s,gal_p,gal_c=compute_galactic_stockpiles(state)
+    for rname in _RESOURCES:
+        roll=_d20(); row=_lookup(_MARKET_SHOCK,roll); _,_,label,(lo,hi),col=row
+        rand_d=0.0 if lo==hi==0.0 else random.uniform(lo,hi)
+        base=RES_BASE_PRICE[rname]; old=mods.get(rname,base)
+        sd_d=price_shock_delta(rname,gal_p[rname],gal_c[rname],old,base)
+        delta=rand_d*0.7+sd_d*0.3; new=round(max(base*0.3,old*(1.0+delta)),4); mods[rname]=new
+        evs.append({"turn":turn,"year":year,"quarter":q,"type":"Market","resource":rname,"roll":roll,"label":label,
+                    "description":f"{rname}: {label} ({1+delta:+.0%}) -> {new:.3f} cr","col_rgb":list(col) if isinstance(col,tuple) else [84,114,136]})
+    market["market_modifier"]=mods
+    ph=market.get("price_history",{})
+    for rname in _RESOURCES: ph.setdefault(rname,[]).append(round(mods.get(rname,RES_BASE_PRICE[rname]),3))
+    market["price_history"]=ph
+    return evs
+
+def roll_colony_events(nation,state):
+    turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    evs=[]
+    for sys in (nation.get("star_systems") or []):
+        for planet in (sys.get("planets") or []):
+            roll=_d20(); row=_lookup(_COLONY_EVENTS,roll)
+            _,_,label,effects,col=row
+            desc=f"{nation['name']} / {planet.get('name','?')}: {label}"
+            for ef,rng in effects.items():
+                if ef=="colonization_pct":
+                    delta=random.uniform(*rng)
+                    planet["colonization_pct"]=round(max(0,min(100,planet.get("colonization_pct",0)+delta)),2)
+                    desc+=f"  col{delta:+.1f}%"
+                elif ef=="pop_change":
+                    pct=random.uniform(*rng)
+                    planet["pop_assigned"]=max(0,planet.get("pop_assigned",0)*(1+pct))
+                    desc+=f"  pop{pct:+.0%}"
+                elif ef=="mineral_bonus":
+                    amt=random.uniform(*rng)
+                    vs=nation.get("vessel_stockpiles",{}); vs["Minerals"]=vs.get("Minerals",0)+amt
+                    nation["vessel_stockpiles"]=vs; desc+=f"  +{amt:.0f} Minerals"
+            evs.append({"turn":turn,"year":year,"quarter":q,"type":"Colony","nation":nation["name"],
+                "roll":roll,"label":label,"description":desc,"col_rgb":list(col) if isinstance(col,tuple) else [84,114,136]})
+    return evs
+
+def roll_civic_events(nation,state):
+    turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    sp=nation.get("species_populations",[]) or []; roll=_d20(); row=_lookup(_CIVIC,roll)
+    _,_,label,field,(lo,hi),col=row; desc=f"{nation['name']}: {label}"
+    if field=="loyalty" and sp:
+        delta=random.randint(int(lo),int(hi))
+        for s in sp: s["_base_loyalty"]=max(0,min(100,s.get("_base_loyalty",s.get("loyalty",50))+delta))
+        desc+=f"  (loyalty {delta:+d})"
+    return [{"turn":turn,"year":year,"quarter":q,"type":"Civic","nation":nation["name"],"roll":roll,"label":label,
+             "description":desc,"col_rgb":list(col) if isinstance(col,tuple) else [84,114,136]}]
+
+def roll_planetside_events(nation,state):
+    turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    for sys in (nation.get("star_systems",[]) or []):
+        for planet in sys.get("planets",[]):
+            roll=_d20(); row=_lookup(_PLANETSIDE,roll); _,_,label,effects,col=row
+            desc=f"{nation['name']} / {planet.get('name','?')}: {label}"
+            for ef,(lo,hi) in effects.items():
+                delta=random.uniform(lo,hi); planet[ef]=round(max(0,planet.get(ef,0)+delta),2); desc+=f"  {ef}{delta:+.1f}"
+            return [{"turn":turn,"year":year,"quarter":q,"type":"Planetside","nation":nation["name"],"roll":roll,"label":label,
+                     "description":desc,"col_rgb":list(col) if isinstance(col,tuple) else [84,114,136]}]
+    return []
+
+def roll_resource_events(nation,state):
+    turn,year,q=state.get("turn",1),state.get("year",2200),state.get("quarter",1)
+    rname=random.choice(_RESOURCES); roll=_d20(); row=_lookup(_RESOURCE_EV,roll)
+    _,_,label,field,(lo,hi),col=row; desc=f"{nation['name']}: {rname} - {label}"
+    if field:
+        delta=random.uniform(lo,hi); sp=nation.get("resource_stockpiles") or {}
+        if not isinstance(sp,dict): sp={}
+        rd=sp.get(rname,{})
+        if not isinstance(rd,dict): rd={}
+        if rd.get("production_mode")=="flat":
+            rd["flat_production"]=max(0,rd.get("flat_production",0)*(1.0+delta)); sp[rname]=rd; nation["resource_stockpiles"]=sp
+        desc+=f"  ({delta:+.0%})"
+    return [{"turn":turn,"year":year,"quarter":q,"type":"Resource","nation":nation["name"],"roll":roll,"label":label,
+             "description":desc,"col_rgb":list(col) if isinstance(col,tuple) else [84,114,136]}]
+
+# ── turn advancement ──────────────────────────────────────────────────────────
+_NPC_UNITS = {
+    "Corvette":           {"cost": 2e9,   "upkeep": 0.2e9,  "cat": "Spacefleet",    "tier": 1},
+    "Frigate":            {"cost": 5e9,   "upkeep": 0.5e9,  "cat": "Spacefleet",    "tier": 2},
+    "Destroyer":          {"cost": 12e9,  "upkeep": 1.0e9,  "cat": "Spacefleet",    "tier": 3},
+    "Light Cruiser":      {"cost": 30e9,  "upkeep": 2.5e9,  "cat": "Spacefleet",    "tier": 4},
+    "Heavy Cruiser":      {"cost": 80e9,  "upkeep": 6e9,    "cat": "Spacefleet",    "tier": 5},
+    "Carrier":            {"cost": 200e9, "upkeep": 15e9,   "cat": "Spacefleet",    "tier": 6},
+    "Fighter Wing":       {"cost": 3e9,   "upkeep": 0.3e9,  "cat": "Aerospace",     "tier": 1},
+    "Bomber Wing":        {"cost": 8e9,   "upkeep": 0.8e9,  "cat": "Aerospace",     "tier": 2},
+    "Interceptor Wing":   {"cost": 6e9,   "upkeep": 0.6e9,  "cat": "Aerospace",     "tier": 2},
+    "Infantry Division":  {"cost": 1e9,   "upkeep": 0.1e9,  "cat": "Ground Forces", "tier": 1},
+    "Artillery Brigade":  {"cost": 3e9,   "upkeep": 0.3e9,  "cat": "Ground Forces", "tier": 2},
+    "Armoured Division":  {"cost": 8e9,   "upkeep": 0.7e9,  "cat": "Ground Forces", "tier": 3},
+    "Marine Division":    {"cost": 5e9,   "upkeep": 0.5e9,  "cat": "Ground Forces", "tier": 2},
+}
+_NPC_FORCE_RATIO = {"Spacefleet": 0.45, "Aerospace": 0.20, "Ground Forces": 0.35}
+_VET_LADDER = ["Green","Regular","Veteran","Elite"]
+
+def _npc_pick_unit(budget, cat, rng):
+    options = [(name,d) for name,d in _NPC_UNITS.items() if d["cat"]==cat and d["cost"]<=budget]
+    if not options: return None, None
+    options.sort(key=lambda x: x[1]["tier"])
+    weights = [1.5**i for i in range(len(options))]
+    total = sum(weights); r = rng.random()*total; acc = 0
+    for (name,d),w in zip(options, weights):
+        acc += w
+        if r <= acc: return name, d
+    return options[-1]
+
+def npc_military_ai(nation, state, t, y, q):
+    """Build forces until upkeep = 50% of net income. Never disband. Returns event list."""
+    evs = []
+    ipeu  = nation.get("base_ipeu", 0.0)
+    sfund = nation.get("strategic_fund", 0.0)
+    exp   = nation.get("expenditure") or {}
+    afd   = list(nation.get("active_forces_detail") or [])
+    rng   = random.Random(hash((nation["name"], t, "npc_mil")))
+    if ipeu <= 0: return evs
+
+    # ── Compute net income (same formula as economy tab) ─────────────────────
+    rb        = nation.get("research_budget", 0.0)
+    total_exp = sum(exp.values()) * ipeu + rb
+    trade     = compute_trade(nation, state.get("trade_routes", []))
+    _, tax    = compute_planet_local_market(nation, state, ipeu)
+    tithe_out = compute_church_tithe(nation, state)
+    tithe_in  = compute_tithe_income(nation, state)
+    debt      = compute_debt(nation, ipeu)
+    net_income = ipeu + trade["net"] + tax + tithe_in - total_exp - debt["q_interest"] - tithe_out
+    # upkeep ceiling = 50% of net income (floor at 0 so we always allow some building)
+    upkeep_ceiling = max(net_income * 0.50, 0.0)
+
+    # ── Current total upkeep ──────────────────────────────────────────────────
+    cur_upkeep = sum(_NPC_UNITS.get(u.get("unit", ""), {}).get("upkeep", 0.5e9) for u in afd)
+
+    # ── Build loop: keep commissioning until ceiling is reached ───────────────
+    # Cap at 5 new units per call to avoid infinite loops on npc automate
+    builds = 0
+    while cur_upkeep < upkeep_ceiling and sfund > 0 and builds < 5:
+        # headroom = how much more upkeep we can afford
+        headroom = upkeep_ceiling - cur_upkeep
+        # pick category most underrepresented vs target ratio
+        cat_counts = {c: sum(1 for u in afd if u.get("category") == c) for c in _NPC_FORCE_RATIO}
+        total_units = max(1, len(afd))
+        cat_deficit = {c: _NPC_FORCE_RATIO[c] - cat_counts[c] / total_units for c in _NPC_FORCE_RATIO}
+        cats = list(cat_deficit.keys()); weights = [max(0, cat_deficit[c]) for c in cats]
+        if sum(weights) == 0: weights = [1/3] * 3
+        total_w = sum(weights); r = rng.random() * total_w; acc = 0; chosen_cat = cats[0]
+        for c, w in zip(cats, weights):
+            acc += w
+            if r <= acc: chosen_cat = c; break
+        # affordable = unit whose upkeep fits headroom AND cost fits sfund
+        affordable = [(name, d) for name, d in _NPC_UNITS.items()
+                      if d["cat"] == chosen_cat and d["upkeep"] <= headroom and d["cost"] <= sfund]
+        if not affordable: break  # nothing fits — stop building
+        # pick highest-tier affordable unit (weighted)
+        affordable.sort(key=lambda x: x[1]["tier"])
+        weights2 = [1.5 ** i for i in range(len(affordable))]
+        total2 = sum(weights2); r2 = rng.random() * total2; acc2 = 0; uname, udata = affordable[-1]
+        for (nm, d), w2 in zip(affordable, weights2):
+            acc2 += w2
+            if r2 <= acc2: uname, udata = nm, d; break
+        # commission
+        new_unit = {"gid": abs(hash((nation["name"], t, uname, builds))) % 999999,
+                    "unit": uname, "category": chosen_cat, "count": 1,
+                    "veterancy": "Green", "combat_turns": 0, "in_combat": False,
+                    "promotion_pending": False, "notes": "NPC auto-raised"}
+        afd.append(new_unit)
+        sfund -= udata["cost"]
+        cur_upkeep += udata["upkeep"]
+        builds += 1
+        evs.append({"turn": t, "year": y, "quarter": q, "type": "NPC", "nation": nation["name"],
+                    "roll": "—", "label": "Force Raised",
+                    "description": f"{nation['name']} commissioned {uname} ({chosen_cat})  cost {fmt_cr(udata['cost'])}",
+                    "col_rgb": list(LIME)})
+
+    nation["active_forces_detail"] = afd
+    nation["strategic_fund"] = sfund - cur_upkeep  # deduct this turn's upkeep
+
+    # ── Veterancy tick ────────────────────────────────────────────────────────
+    for u in afd:
+        u["combat_turns"] = u.get("combat_turns", 0) + 1
+        vet = u.get("veterancy", "Green")
+        vi  = _VET_LADDER.index(vet) if vet in _VET_LADDER else 0
+        thresholds = [0, 8, 20, 40]
+        if vi < len(_VET_LADDER)-1 and u["combat_turns"] >= thresholds[vi] and rng.random() < 0.08:
+            u["veterancy"] = _VET_LADDER[vi+1]
+            evs.append({"turn": t, "year": y, "quarter": q, "type": "NPC", "nation": nation["name"],
+                        "roll": "—", "label": "Unit Promoted",
+                        "description": f"{nation['name']} {u.get('unit','?')} promoted to {u['veterancy']}",
+                        "col_rgb": list(CYAN)})
+
+    return evs
+def advance_turns(sm,n_turns):
+    all_evs=[]
+    for _ in range(n_turns):
+        t=sm.state.get("turn",1)+1; q=sm.state.get("quarter",1); y=sm.state.get("year",2200)
+        q+=1
+        if q>4: q=1; y+=1
+        sm.state["turn"]=t; sm.state["quarter"]=q; sm.state["year"]=y
+        for route in sm.state.get("trade_routes",[]): route["_piracy_loss_this_turn"]=0.0
+        all_evs.extend(roll_market_events(sm.state))
+        all_evs.extend(roll_piracy_events(sm.state))
+        all_evs.extend(apply_tithes(sm.state))
+        all_evs.extend(apply_gtc_debt_service(sm.state))
+        for nation in sm.state.get("nations",[]):
+            if is_colony(nation):
+                # colony turn: vessel stockpiles tick, colony events
+                vs=nation.get("vessel_stats",{}); vsp=nation.get("vessel_stockpiles",{})
+                for rname in ["Food","Minerals","Alloys","Energy"]:
+                    prod_key={"Food":"food_production","Minerals":"mineral_extraction",
+                              "Alloys":"alloy_production","Energy":"energy_production"}.get(rname,"")
+                    cons_key={"Food":"food_consumption","Energy":"energy_consumption"}.get(rname,"")
+                    prod=vs.get(prod_key,0.0); cons=vs.get(cons_key,0.0) if cons_key else 0.0
+                    vsp[rname]=max(0,vsp.get(rname,0.0)+prod-cons)
+                nation["vessel_stockpiles"]=vsp
+                all_evs.extend(roll_colony_events(nation,sm.state))
+                all_evs.extend(roll_civic_events(nation,sm.state))
+            else:
+                ipeu=nation.get("base_ipeu",0.0); eco_mod=econ_model_ipeu_modifier(nation)
+                g=nation.get("ipeu_growth",0.0)
+                nation["base_ipeu"]=ipeu*(1.0+g)**0.25*(eco_mod**0.25)
+                pg=nation.get("pop_growth",0.0); eff=spending_effects(nation,ipeu)
+                pg_bonus=eff["popdev_growth_bonus"]/100.0
+                nation["population"]=nation.get("population",0.0)*(1.0+(pg+pg_bonus))**0.25
+                bal=nation.get("debt_balance",0.0)
+                if bal>0:
+                    qi=bal*nation.get("interest_rate",0.0)/4.0; rep=nation.get("debt_repayment",0.0)
+                    nation["debt_balance"]=max(0,bal+qi-rep); nation["strategic_fund"]=nation.get("strategic_fund",0.0)-qi
+                ipeu2=nation.get("base_ipeu",0.0); res=compute_resources(nation,ipeu2)
+                sp=nation.get("resource_stockpiles") or {}
+                if not isinstance(sp,dict): sp={}
+                for rname,rd in res.items():
+                    entry=sp.get(rname,{})
+                    if not isinstance(entry,dict): entry={}
+                    entry["stockpile"]=max(0.0,entry.get("stockpile",0.0)+rd["net"]); sp[rname]=entry
+                nation["resource_stockpiles"]=sp
+                compute_species_loyalty_happiness(nation,res)
+                _,tax=compute_planet_local_market(nation,sm.state,ipeu2)
+                trade_flow=compute_trade(nation,sm.state.get("trade_routes",[]))
+                corp_inc=compute_corp_income(nation) if (nation.get("is_megacorp") or "corporate_data" in nation) else 0.0
+                nation["strategic_fund"]=nation.get("strategic_fund",0.0)+tax+trade_flow["net"]+corp_inc
+                if nation.get("is_megacorp") or "corporate_data" in nation:
+                    _cd2=nation.setdefault("corporate_data",{})
+                    _locs2=_cd2.get("locations") or []
+                    _total_emp=sum(l.get("employees",0) for l in _locs2)
+                    _contracts2=_cd2.get("contracts") or []
+                    _cval=sum(c.get("value_per_turn",0.0) for c in _contracts2 if c.get("status")=="active")
+                    _cd2.setdefault("corp_history",[]).append({"turn":t,"trust":_cd2.get("trust",0.5),
+                        "income":round(corp_inc,2),"market_cap":round(compute_corp_market_cap(nation),2),
+                        "contracts_value":round(_cval,2),"employees":_total_emp,"location_count":len(_locs2)})
+                    _corp_evs=roll_corp_events(nation,sm.state)
+                    for _ce in _corp_evs:
+                        _cd2["trust"]=max(0.0,min(1.0,_cd2.get("trust",0.5)+_ce.get("trust_delta",0.0)))
+                    _cd2.setdefault("corp_events",[]).extend(_corp_evs)
+                    all_evs.extend([{**_ce,"type":"Corp","nation":nation["name"],
+                        "col_rgb":_ce.get("col_rgb",list(PURPLE))} for _ce in _corp_evs])
+                # tick economic projects
+                eproj=nation.get("economic_projects") or []
+                still_ep=[]
+                for ep in eproj:
+                    if ep.get("status")!="active": still_ep.append(ep); continue
+                    cost=ep.get("cost_per_turn",0.0)
+                    nation["strategic_fund"]=nation.get("strategic_fund",0.0)-cost
+                    ef=ep.get("effect_field","none"); ev2=ep.get("effect_value",0.0)
+                    # Apply effect once on first tick (when _applied not yet set)
+                    if ef and ef!="none" and not ep.get("_applied"):
+                        nation[ef]=nation.get(ef,0.0)+ev2
+                        ep["_applied"]=True
+                    ep["turns_remaining"]=ep.get("turns_remaining",1)-1
+                    if ep["turns_remaining"]>0:
+                        still_ep.append(ep)
+                    else:
+                        # Reverse the effect on completion
+                        if ef and ef!="none" and ep.get("_applied"):
+                            nation[ef]=nation.get(ef,0.0)-ev2
+                        ep["status"]="completed"; still_ep.append(ep)
+                        all_evs.append({"turn":t,"year":y,"quarter":q,"type":"Project",
+                            "nation":nation["name"],"roll":"—","label":"Project Complete",
+                            "description":f"{ep.get('name','?')} completed","col_rgb":list(GOLD)})
+                nation["economic_projects"]=still_ep
+                all_evs.extend(advance_construction(nation,sm.state))
+                all_evs.extend(roll_civic_events(nation,sm.state))
+                all_evs.extend(roll_planetside_events(nation,sm.state))
+                all_evs.extend(roll_resource_events(nation,sm.state))
+                # NPC military automation
+                if nation.get("is_npc") and not is_colony(nation):
+                    all_evs.extend(npc_military_ai(nation,sm.state,t,y,q))
+            # update manpower pool
+            nation["manpower_pool"]=compute_manpower(nation)
+    sm.state.setdefault("events_log",[]).extend(all_evs)
+    sm.mark_dirty(); sm.save()
+    t2=sm.state.get("turn",1); y2=sm.state.get("year",2200); q2=sm.state.get("quarter",1)
+    sm.save_history(t2,y2,q2,sm.state)
+    return all_evs
+
+# ── territory tools ───────────────────────────────────────────────────────────
+_PLANET_TYPES=["Terrestrial","Continental","Arid","Desert","Ocean","Arctic","Toxic","Jungle","Barren","Gas Giant"]
+_PLANET_SIZES=["Tiny","Small","Medium","Large","Huge"]
+_CLIMATES=["Temperate","Arid","Oceanic","Arctic","Toxic","Jungle","Desert"]
+_DISTRICT_TYPES=["Residential","Urban","Industrial Civilian","Industrial Military","Farming","Agricultural",
+                  "Mining","Energy Plant","Power","Military","Research Lab"]
+_PLATFORM_TYPES=["Mining","Hydroponics","Research","Dockyards"]
+
+def _rng_name(prefix,idx):
+    suf=["Alpha","Beta","Gamma","Delta","Epsilon","Zeta","Prime","Secundus","Tertius","IV","V","VI"]
+    return f"{prefix} {suf[idx%len(suf)]}"
+
+def randomize_planet(planet,total_pop):
+    planet["type"]=random.choice(_PLANET_TYPES); planet["size"]=random.choice(_PLANET_SIZES)
+    planet["climate"]=random.choice(_CLIMATES); planet["habitability"]=round(random.uniform(10,95),1)
+    planet["devastation"]=round(random.uniform(0,15),1); planet["crime_rate"]=round(random.uniform(0,25),1)
+    planet["unrest"]=round(random.uniform(0,20),1)
+    sz={"Tiny":0.05,"Small":0.10,"Medium":0.20,"Large":0.35,"Huge":0.50}
+    pp=total_pop*sz.get(planet.get("size","Medium"),0.2)*(planet.get("habitability",50)/100.0)
+    planet["pop_assigned"]=round(pp); n_s=random.randint(1,3); setts=[]; rem=pp
+    for i in range(n_s):
+        s_pop=rem/(n_s-i); n_d=random.randint(2,6)
+        districts=[{"type":random.choice(_DISTRICT_TYPES),"status":"Operational","notes":"","built_turn":0,"workforce":0} for _ in range(n_d)]
+        setts.append({"name":_rng_name(planet.get("name","S"),i),"population":round(s_pop),"loyalty":round(random.uniform(40,85),1),"amenities":round(random.uniform(30,80),1),"districts":districts})
+        rem-=s_pop
+    planet["settlements"]=setts; planet.setdefault("platforms",[])
+
+def add_system(nation,name=""):
+    si=len(nation.get("star_systems",[]))
+    if not name: name=_rng_name("System",si)
+    nation.setdefault("star_systems",[]).append({"name":name,"notes":"","coordinates":"","planets":[]})
+
+def add_planet(system,nation_pop,name=""):
+    pi=len(system.get("planets",[]))
+    if not name: name=_rng_name(system["name"],pi)
+    p={"name":name,"type":"Terrestrial","size":"Medium","climate":"Temperate","habitability":50.0,
+       "devastation":0.0,"crime_rate":5.0,"unrest":5.0,"pop_assigned":0,"settlements":[],"platforms":[]}
+    randomize_planet(p,nation_pop); system.setdefault("planets",[]).append(p)
+
+def add_platform(planet,ptype="Mining"):
+    planet.setdefault("platforms",[]).append({"type":ptype,"status":"Operational","name":f"{ptype} Platform"})
+
+# ── state manager ─────────────────────────────────────────────────────────────
+class StateManager:
+    def __init__(self,filepath):
+        self.filepath=Path(filepath); self.state={}; self.dirty=False
+    def load(self):
+        try:
+            with open(self.filepath) as f: self.state=json.load(f)
+            self.dirty=False
+            self._migration_warnings=[]
+            for _mn in self.state.get("nations",[]):
+                _cd=_mn.get("corporate_data")
+                if _cd and (_cd.get("offices",0)>0 or _cd.get("stores",0)>0):
+                    self._migration_warnings.append(_mn["name"])
+                    _cd["offices"]=0; _cd["stores"]=0
+            # ── is_npc migration: stamp every nation ──────────────────────────
+            for _mn in self.state.get("nations",[]):
+                if "is_npc" not in _mn:
+                    _mn["is_npc"] = _mn["name"] not in PLAYER_NATIONS
+            _gtc=self.state.setdefault("market",{}).setdefault("gtc",{})
+            _ldg=_gtc.setdefault("debt_ledger",{})
+            if "Regnum Dei" not in _ldg:
+                _ldg["Regnum Dei"]={"balance":6e12,"interest_rate":0.04,
+                                    "repayment":0.0,"creditor":"GTC","since_turn":1,
+                                    "note":"Founding loan - Galactic Trade Confederation"}
+            return True
+        except Exception as e: print(f"[LOAD ERROR] {e}"); return False
+    def save(self,path=None):
+        target=Path(path) if path else self.filepath; self._rotate_backups(target)
+        try:
+            with open(target,"w") as f: json.dump(self.state,f,indent=2)
+            self.dirty=False; return True
+        except Exception as e: print(f"[SAVE ERROR] {e}"); return False
+    def autosave(self): self.save()
+    def mark_dirty(self): self.dirty=True
+    def _rotate_backups(self,target):
+        def bp(n): return target.with_suffix(f".bak{n}.json")
+        if bp(BACKUP_COUNT-1).exists(): bp(BACKUP_COUNT-1).unlink()
+        for i in range(BACKUP_COUNT-2,0,-1):
+            if bp(i).exists(): bp(i).rename(bp(i+1))
+        if target.exists():
+            try: target.rename(bp(1))
+            except: pass
+    def save_history(self, turn, year, quarter, state):
+        """Append a turn snapshot to carmine_history.json."""
+        hpath = self.filepath.parent / "carmine_history.json"
+        try:
+            hist = json.loads(hpath.read_text()) if hpath.exists() else {"turns": []}
+        except:
+            hist = {"turns": []}
+        market = state.get("market", {})
+        snap = {
+            "turn": turn, "year": year, "quarter": quarter,
+            "market_prices": {k: round(v, 4) for k, v in market.get("market_modifier", {}).items()},
+            "nations": {n["name"]: {
+                "ipeu": round(n.get("base_ipeu", 0.0), 2),
+                "population": round(n.get("population", 0.0), 0),
+                "strategic_fund": round(n.get("strategic_fund", 0.0), 2),
+            } for n in state.get("nations", [])}
+        }
+        hist["turns"].append(snap)
+        try: hpath.write_text(json.dumps(hist, indent=2))
+        except Exception as e: print(f"[HISTORY] {e}")
+    def nation_names(self): return [n["name"] for n in self.state.get("nations",[])]
+    def get_nation(self,name):
+        for n in self.state.get("nations",[]):
+            if n["name"]==name: return n
+        return None
+
+# ── GM console ────────────────────────────────────────────────────────────────
+def run_gm_command(cmd, sm):
+    """
+    Commands:
+      set "<nation>" <field> <value>
+      give "<nation>" <resource> <amount>
+      setmodel "<nation>" <PLANNED|MARKET|MIXED|COLONY_START>
+      advance <n>
+      tithe
+      list nations
+      help
+    """
+    cmd=cmd.strip()
+    if not cmd: return "No command."
+    parts=cmd.split()
+    verb=parts[0].lower()
+
+    if verb=="help":
+        return ('set "Nation" field value\n'
+                'give "Nation" resource amount\n'
+                'setmodel "Nation" PLANNED|MARKET|MIXED|COLONY_START\n'
+                'advance N\n'
+                'tithe  (manually apply tithes)\n'
+                'market discord  (export galactic market report)\n'
+                'shock <resource> <pct>  (e.g. shock Energy +25)\n'
+                'setnpc "Nation"  /  setplayer "Nation"\n'
+                'npc automate  (run military AI for all NPC nations now)\n'
+                'list nations')
+
+    if verb=="list" and len(parts)>1 and parts[1]=="nations":
+        return "\n".join(sm.nation_names())
+
+    if verb=="tithe":
+        evs=apply_tithes(sm.state); sm.mark_dirty(); sm.autosave()
+        return f"Tithe applied. {len(evs)} transactions."
+
+    if verb=="market" and len(parts)>1 and parts[1]=="discord":
+        path=_discord_market_export(sm.state)
+        return f"Galactic Market Report -> {path}"
+
+    if verb=="shock":
+        # shock <resource> <pct>   e.g.  shock Energy +25   or  shock Food -15
+        if len(parts)<3: return "Usage: shock <resource> <pct>  e.g. shock Energy +25"
+        rname=" ".join(parts[1:-1]); pct_s=parts[-1]
+        matched=next((r for r in _RESOURCES if r.lower()==rname.lower()),None)
+        if not matched: return f"Unknown resource. Options: {_RESOURCES}"
+        try: pct=float(pct_s)/100.0
+        except: return f"Invalid pct: {pct_s}"
+        market=sm.state.setdefault("market",{})
+        mods=market.setdefault("market_modifier",{})
+        base=market.get("price_base",{}).get(matched,RES_BASE_PRICE[matched])
+        old=mods.get(matched,base)
+        new=round(max(base*0.2, old*(1.0+pct)),4); mods[matched]=new
+        ph=market.setdefault("price_history",{}); ph.setdefault(matched,[]).append(new)
+        t=sm.state.get("turn",1); y=sm.state.get("year",2200); q=sm.state.get("quarter",1)
+        sm.state.setdefault("events_log",[]).append({"turn":t,"year":y,"quarter":q,"type":"Market",
+            "resource":matched,"roll":"GM","label":"GM Shock",
+            "description":f"{matched}: GM Shock ({pct*100:+.1f}%) {old:.4f} -> {new:.4f} cr",
+            "col_rgb":list(GOLD)})
+        sm.mark_dirty(); sm.autosave()
+        return f"Price shock applied: {matched} {pct*100:+.1f}%  {old:.4f} -> {new:.4f} cr"
+
+    if verb in ("setnpc","setplayer"):
+        m2=re.search(r'"([^"]+)"',cmd)
+        if not m2: return f'Usage: {verb} "Nation Name"'
+        nname=m2.group(1); nation=sm.get_nation(nname)
+        if not nation: return f"Nation '{nname}' not found."
+        nation["is_npc"]=(verb=="setnpc")
+        sm.mark_dirty(); sm.autosave()
+        status="NPC (automated)" if nation["is_npc"] else "Player (manual)"
+        return f"{nname} set to {status}."
+
+    if verb=="npc" and len(parts)>1 and parts[1]=="automate":
+        t=sm.state.get("turn",1); y=sm.state.get("year",2200); q=sm.state.get("quarter",1)
+        evs=[]; count=0
+        for nation in sm.state.get("nations",[]):
+            if nation.get("is_npc") and not is_colony(nation):
+                evs.extend(npc_military_ai(nation,sm.state,t,y,q)); count+=1
+        sm.state.setdefault("events_log",[]).extend(evs)
+        sm.mark_dirty(); sm.autosave()
+        return f"NPC military AI run for {count} nations. {len(evs)} events generated."
+
+    if verb=="advance" and len(parts)>1:
+        try: n=int(parts[1])
+        except: return "Usage: advance N"
+        evs=advance_turns(sm,n)
+        return f"Advanced {n} turns. {len(evs)} events."
+
+    # parse quoted nation name
+    import re
+    m=re.match(r'(\w+)\s+"([^"]+)"\s*(.*)',cmd)
+    if not m: return f"Unknown command or bad syntax. Type 'help'."
+    verb2=m.group(1).lower(); nname=m.group(2); rest=m.group(3).strip().split()
+    nation=sm.get_nation(nname)
+    if not nation: return f"Nation '{nname}' not found."
+
+    if verb2=="setmodel":
+        if not rest: return "Usage: setmodel \"Nation\" MODEL"
+        model=rest[0].upper()
+        if model not in ECON_MODELS: return f"Model must be one of: {ECON_MODELS}"
+        nation["economic_model"]=model
+        if model=="COLONY_START": nation["is_colony_start"]=True
+        else: nation["is_colony_start"]=False
+        sm.mark_dirty(); sm.autosave()
+        return f"{nname} economic model set to {model}."
+
+    if verb2=="give":
+        if len(rest)<2: return "Usage: give \"Nation\" resource amount"
+        rname=" ".join(rest[:-1]); amt_s=rest[-1]
+        # handle "Consumer Goods" etc
+        try: amt=float(amt_s)
+        except: return f"Invalid amount: {amt_s}"
+        matched=next((r for r in _RESOURCES if r.lower()==rname.lower()),None)
+        if not matched: return f"Unknown resource. Options: {_RESOURCES}"
+        sp=nation.get("resource_stockpiles",{})
+        if not isinstance(sp.get(matched),dict): sp[matched]={"stockpile":0.0}
+        sp[matched]["stockpile"]=sp[matched].get("stockpile",0.0)+amt
+        nation["resource_stockpiles"]=sp; sm.mark_dirty(); sm.autosave()
+        return f"Gave {fmt_res(amt)} {matched} to {nname}."
+
+    if verb2=="set":
+        if len(rest)<2: return "Usage: set \"Nation\" field value"
+        field=rest[0]; val_s=" ".join(rest[1:])
+        try: val=float(val_s)
+        except: val=val_s
+        nation[field]=val; sm.mark_dirty(); sm.autosave()
+        return f"{nname}.{field} = {val}"
+
+    return f"Unknown command '{verb2}'. Type 'help'."
+
+# ── discord export ────────────────────────────────────────────────────────────
+def _discord_export(nation,state):
+    DISCORD_DIR.mkdir(exist_ok=True)
+    SEP="  " + "─"*57
+    ye=years_elapsed(state); ipeu=nation.get("base_ipeu",0.0)
+    pop=nation.get("population",0.0)*(1.0+nation.get("pop_growth",0.0))**ye
+    exp=nation.get("expenditure",{}) if isinstance(nation.get("expenditure"),dict) else {}
+    routes=state.get("trade_routes",[]); trade=compute_trade(nation,routes)
+    export_cr=compute_resource_export_credits(nation,state)
+    rb=nation.get("research_budget",0.0); sfund=nation.get("strategic_fund",0.0)
+    species=nation.get("species_populations",[]) or []; star_sys=nation.get("star_systems",[]) or []
+    afd=nation.get("active_forces_detail",[]) or []
+    ugroups={ug["ugid"]:ug for ug in (nation.get("unit_groups") or [])}
+    active_r=nation.get("active_research_projects",[]) or []; done_r=nation.get("completed_techs",[]) or []
+    eproj=nation.get("economic_projects") or []
+    qtr=state.get("quarter",1); year=state.get("year",2200); turn=state.get("turn",1)
+    tag=nation_tag(nation["name"]); homeworld="N/A"
+    for sys in star_sys:
+        for pl in sys.get("planets",[]): homeworld=pl.get("name","N/A"); break
+        break
+    L=[]; A=L.append
+
+    # ── HEADER ────────────────────────────────────────────────────────────────
+    A(f"-# [{tag}] {nation['name'].upper()}")
+    A(f"# NATIONAL PROFILE - Q{qtr} [{year}]"); A("```")
+    for s in species:
+        A(f"  Species          : {s['name']} ({s.get('population_share',0)*100:.1f}%)")
+    if not species: A("  Species          : N/A")
+    A(f"  Population       : {fmt_pop(pop)}")
+    A(f"  Pop Growth       : {fmt_pct(nation.get('pop_growth',0))} / yr")
+    A(f"  Homeworld        : {homeworld}")
+    A(f"  Civilisation     : {nation.get('civ_level','N/A')}")
+    A(f"  Tier             : {nation.get('civ_tier','N/A')}")
+    A(f"  Economic Model   : {nation.get('economic_model','MIXED')}")
+    A(f"  Status           : {nation.get('eco_status','Stable')}"); A("```")
+
+    # ── COLONY PATH ───────────────────────────────────────────────────────────
+    if is_colony(nation):
+        vres=compute_vessel_resources(nation); vs=nation.get("vessel_stats",{})
+        A("# COLONY VESSEL"); A("```")
+        A(f"  Pop Capacity     : {fmt_pop(vs.get('pop_capacity',0))}")
+        A(f"  Population       : {fmt_pop(pop)}"); A("```")
+        A("## VESSEL STOCKPILES")
+        for rname in ["Food","Minerals","Alloys","Energy"]:
+            rd=vres[rname]; A("```")
+            A(f"  {rname} Stockpile  : {fmt_res(rd['stockpile'])}")
+            A(f"  {rname} Net/turn   : {fmt_res(rd['net'])}  {rd['trend']}"); A("```")
+        A("## COLONY PROGRESS")
+        for cp in get_colony_progress(nation):
+            A("```")
+            A(f"  {cp['planet']} ({cp['system']})")
+            A(f"    Colonized : {cp['colonization_pct']:.1f}%  {bar_str(cp['colonization_pct']/100)}")
+            A(f"    Explored  : {cp['explored_pct']:.1f}%"); A("```")
+    else:
+        # ── ECONOMY ───────────────────────────────────────────────────────────
+        res=compute_resources(nation,ipeu); debt=compute_debt(nation,ipeu)
+        _,tax_inc=compute_planet_local_market(nation,state,ipeu)
+        eff=spending_effects(nation,ipeu)
+        total_exp=sum(exp.values())*ipeu+rb
+        tithe=compute_church_tithe(nation,state)
+        tithe_in=compute_tithe_income(nation,state)
+        net_bal=ipeu+trade["net"]+tax_inc+tithe_in-total_exp-debt["q_interest"]-tithe
+        gtc_e=compute_gtc_debt(nation,state)
+        gtc_qi=gtc_e.get("balance",0.0)*gtc_e.get("interest_rate",0.04)/4.0 if gtc_e else 0.0
+        per_cap=int(ipeu/pop) if pop else 0
+        mil_cons=compute_military_consumption(nation)
+        econ=nation.get("economic_model","MIXED")
+        A("# ECONOMY"); A("```")
+        A(f"  IPEU (base)      : {fmt_cr(ipeu)}")
+        A(f"  IPEU Growth      : {fmt_pct(nation.get('ipeu_growth',0))} / yr")
+        A(f"  IPEU per Capita  : {per_cap:,} cr")
+        A(f"  Trade Revenue    : {fmt_cr(trade['net'])}")
+        A(f"   - Exports       : {fmt_cr(trade['exports'])}")
+        A(f"   - Imports       : {fmt_cr(trade['imports'])}")
+        A(f"   - Transit       : {fmt_cr(trade['transit_income'])}")
+        A(f"  Local Mrket Tax  : {fmt_cr(tax_inc)}")
+        if tithe_in>0: A(f"  Tithe Income     : +{fmt_cr(tithe_in)}")
+        if tithe>0:    A(f"  Church Tithe     : -{fmt_cr(tithe)}")
+        if debt["q_interest"]>0: A(f"  Qrtly Intr Pymt  : -{fmt_cr(debt['q_interest'])}")
+        if gtc_qi>0:   A(f"  GTC Interest     : -{fmt_cr(gtc_qi)}")
+        A(f"  Total Expenditure: {fmt_cr(total_exp)}")
+        A(f"  Research Budget  : {fmt_cr(rb)} / turn")
+        A(f"  Net Balance      : {fmt_cr(net_bal)}"); A("```")
+
+        # ── EXPENDITURE ───────────────────────────────────────────────────────
+        A("## EXPENDITURE & BREAKDOWN"); A("```")
+        mx=max(exp.values(),default=0.01)
+        for cat,pct in exp.items():
+            A(f"  {cat:<24} {pct*100:5.1f}%  {bar_str(pct/mx,20)}  {fmt_cr(pct*ipeu)}")
+        A(SEP)
+        A(f"  {'TOTAL':<24} {sum(exp.values())*100:5.1f}%{'':>22}  ({fmt_cr(total_exp)})")
+        A("```")
+        A("### SPENDING EFFECTS"); A("```")
+        A(f"  Infra Trade Bonus      : +{eff['infra_trade_bonus']:.1f}% attractiveness")
+        A(f"  PopDev Growth          : +{eff['popdev_growth_bonus']:.3f}% / yr")
+        A(f"  Military Morale        : +{eff['mil_morale_bonus']:.1f}%")
+        A(f"  Combat Power           : {eff['mil_combat_power']:.3f} Tcr  (10B cr = 1 CP)")
+        A("```")
+        if econ in ("PLANNED","MIXED"):
+            loy=_avg_loyalty(nation)
+            A("# PLANNED DISTRIBUTION & EFFICIENCY"); A("```")
+            A(f"  Avg Loyalty            : {loy:.1f} / 100")
+            A(f"  Resource Eff           : {100*(1.0+max(0,loy-50)/200):.1f}%")
+            A(f"  Construction Eff       : N/A")
+            A(f"  Research Eff           : N/A"); A("```")
+        if econ in ("MARKET","MIXED"):
+            planet_markets,_=compute_planet_local_market(nation,state,ipeu)
+            A("# MARKET LOCAL PLANET OUTPUT"); A("```")
+            for pm in planet_markets[:8]:
+                A(f"  {pm.get('planet','?'):<28}: Attr: {pm.get('attractiveness',0):.2f}  Tax: {fmt_cr(pm.get('tax',0))}")
+            eco_mod=econ_model_ipeu_modifier(nation)
+            subs,invest=compute_subsidies(nation,ipeu)
+            A(f"  Subsidy Cost           : {fmt_cr(subs)}")
+            A(f"  Investment             : {fmt_cr(invest)}")
+            A(f"  Investment Bonus       : x{eco_mod:.3f}"); A("```")
+
+        # ── ECONOMIC PROJECTS ─────────────────────────────────────────────────
+        if eproj:
+            A("## ECONOMIC PROJECTS"); A("```")
+            for ep in eproj:
+                nm=ep.get("name","?"); rem=ep.get("turns_remaining",0)
+                ben=ep.get("benefit",""); A(f"  {nm}  ({rem}t remaining)  {ben}")
+            A(SEP); A("```")
+
+        # ── FISCAL REPORT ─────────────────────────────────────────────────────
+        A("## FISCAL REPORT"); A("```")
+        dc_lbl="Debtor" if debt["is_debtor"] else "Creditor (GALACTIC TRADE CONFEDERATION)" if not debt["is_debtor"] else "Creditor"
+        A(f"  Debtor / Creditor    : {dc_lbl}")
+        A(f"  Debt Balance         : {fmt_cr(debt['balance'])}")
+        load_bar=bar_str(min(1.0,debt['load_pct']/100),20)
+        A(f"  Debt Load            : {debt['load_pct']:.1f}% of IPEU  {load_bar}")
+        A(f"  Interest Rate        : {debt['rate']*100:.2f}%")
+        A(f"  Quarterly Int.       : {fmt_cr(debt['q_interest'])}")
+        A(f"  Debt Repayment       : {fmt_cr(debt['repayment'])}")
+        if gtc_e:
+            A("")
+            A(f"  GTC Debt Balance     : {fmt_cr(gtc_e.get('balance',0.0))}")
+            A(f"  GTC Rate             : {gtc_e.get('interest_rate',0.04)*100:.2f}% p.a.")
+            A(f"  GTC Quarterly Int.   : {fmt_cr(gtc_qi)}")
+            A(f"  GTC Since            : Turn {gtc_e.get('since_turn',1)}")
+        A(SEP)
+        sf_delta=-debt["q_interest"]-gtc_qi
+        A(f"  Strategic Fund       : {fmt_cr(sfund)}")
+        A(f"  Fund increase / turn : {('+' if sf_delta>=0 else '')}{fmt_cr(sf_delta)}"); A("```")
+
+        # ── RESOURCES & STOCKPILES ────────────────────────────────────────────
+        A("## RESOURCES & STOCKPILES")
+        for rname in _RESOURCES:
+            rd=res[rname]; ns=f"+{fmt_res(rd['net'])}" if rd["net"]>=0 else fmt_res(rd["net"])
+            exc=export_cr.get(rname,0.0); A("```")
+            A(f"  {rname} Stockpile            : {fmt_res(rd['stockpile'])}")
+            A(f"  {rname} Production per turn  : {fmt_res(rd['production'])}")
+            A(f"  {rname} Consumption per turn : {fmt_res(rd['consumption'])}")
+            A(f"  {rname} Net per turn         : {ns}")
+            A(f"  {rname} Trend                : {rd['trend']}")
+            A(f"  {rname} Export               : {fmt_cr(exc)}"); A("```")
+
+    # ── TERRITORIES ───────────────────────────────────────────────────────────
+    A("# TERRITORIES"); A("```")
+    for sys in star_sys:
+        A(f"  Home System: {sys.get('name','?')}")
+        A(f"  Planets:")
+        for pl in sys.get("planets",[]):
+            A(f"      - {pl.get('name','?')} Planet")
+            A(f"        Type          : {pl.get('planet_type','?')}")
+            A(f"        Size          : {pl.get('size','?')}")
+            A(f"        Habitability  : {pl.get('habitability','?')}")
+            A(f"        Devastation   : {pl.get('devastation',0):.1f}%")
+            A(f"        Crime Rate    : {pl.get('crime_rate',0):.1f}%")
+            A(f"        Unrest        : {pl.get('unrest',0):.1f}%")
+            A(f"        Population    : {fmt_pop(pl.get('population',0))}")
+            for sett in pl.get("settlements",[]):
+                A(f"    {sett.get('name','?')}:")
+                A(f"      Population    : {fmt_pop(sett.get('population',0))}")
+                A(f"      Settlements   : {len(sett.get('districts',[]))} districts")
+                dist_types={}
+                for d in sett.get("districts",[]):
+                    dt=d.get("type","?") if isinstance(d,dict) else str(d)
+                    dist_types[dt]=dist_types.get(dt,0)+1
+                for dt,cnt in dist_types.items():
+                    A(f"        - {dt} x{cnt}")
+    A("```")
+
+    # ── NATIONAL DEMOGRAPHICS ─────────────────────────────────────────────────
+    A("# NATIONAL DEMOGRAPHICS"); A("```")
+    A(f"  Total Population     : {fmt_pop(pop)}")
+    loy_mod=nation.get("loyalty_modifier",0.0)
+    A(f"  Loyalty Modifier     : {loy_mod:+.2f}")
+    A("```")
+    for s in species:
+        share=s.get("population_share",0.0)
+        if share>=0.5:   share_lbl="Dominant"
+        elif share>=0.3: share_lbl="Majority"
+        elif share>=0.1: share_lbl="Significant"
+        else:            share_lbl="Minority"
+        crown=" 👑" if share==max((sp.get("population_share",0) for sp in species),default=0) else ""
+        A("```")
+        A(f"  {s['name']}{crown}")
+        A(f"    Population       : {fmt_pop(pop*share)}")
+        A(f"    Share            : {share*100:.1f}% — {share_lbl}")
+        A(f"    Growth Rate      : {fmt_pct(s.get('growth_rate',nation.get('pop_growth',0)))}")
+        A(f"    Culture          : {s.get('culture','N/A')}")
+        A(f"    Language         : {s.get('language','N/A')}")
+        A(f"    Religion         : {s.get('religion','N/A')}")
+        A(f"    Loyalty          : {s.get('loyalty',0):.1f} / 100")
+        A(f"    Happiness        : {s.get('happiness',0):.1f} / 100")
+        A("```")
+
+    # ── MILITARY ──────────────────────────────────────────────────────────────
+    A("# MILITARY")
+    for hdr,cats in [("## SPACEFLEET",["Spacefleet","Navy"]),
+                     ("## AEROSPACE FORCES",["Air Force","Aerospace"]),
+                     ("## GROUND FORCES",["Ground Forces","Ground","Army"])]:
+        units=[u for u in afd if u.get("category") in cats]; A(hdr); A("```")
+        if units:
+            gd={}
+            for u in units:
+                ugid=u.get("ugid"); grp=ugroups[ugid]["name"] if ugid and ugid in ugroups else "N/A"
+                gd.setdefault(grp,[]).append(u)
+            for grp,us in gd.items():
+                if grp!="N/A": A(f"  {grp}")
+                for u in us:
+                    nm=u.get("custom_name") or u.get("unit","?")
+                    vet=u.get("veterancy","Green"); cnt=u.get("count",1)
+                    notes=u.get("notes","").strip()
+                    line=f"    - {nm} | x{cnt} | {vet}"
+                    if notes: line+=f" | {notes}"
+                    A(line)
+        else: A("  None on record")
+        A("```")
+    A("# ARSENAL"); A("```")
+    arsenal=nation.get("arsenal",[]) or []
+    if arsenal:
+        for item in arsenal:
+            A(f"  {item.get('name','?')}")
+            A(f"  {item.get('type','?')} | {item.get('size','?')} | Crew:{item.get('crew','?')} | Mnt:{fmt_cr(item.get('maintenance',0))} | {item.get('production_time','?')} turns")
+    else: A("  None on record")
+    A("```")
+    A("## MANPOWER"); A("```")
+    A(f"  Pool       : {fmt_pop(compute_manpower(nation))}")
+    A(f"  Stored Pool: {fmt_pop(nation.get('manpower_pool',0))}"); A("```")
+
+    # ── RESEARCH ──────────────────────────────────────────────────────────────
+    A("# RESEARCH"); A("```")
+    rp_pt=rb; rp_cost=1.0
+    A(f"  RP per turn            : {fmt_cr(rp_pt)}")
+    A(f"  .000001 RP Cost        : {fmt_cr(rp_cost)}")
+    A(SEP)
+    A("  Active Projects:")
+    if active_r:
+        for p in active_r:
+            if isinstance(p, str):
+                A(f"    {p}")
+            else:
+                A(f"    {p.get('name','?')}")
+                A(f"      Field    : {p.get('field','?')}")
+                A(f"      Progress : {p.get('progress',0):.1f}%  {bar_str(p.get('progress',0)/100,20)}")
+                A(f"      Benefits : {p.get('benefit','N/A')}")
+    else: A("    None active")
+    A("  Completed Projects:")
+    if done_r:
+        for p in done_r:
+            if isinstance(p, str):
+                A(f"    {p}")
+            else:
+                A(f"    {p.get('name','?')}")
+                A(f"      Field    : {p.get('field','?')}")
+                A(f"      Benefits : {p.get('benefit','N/A')}")
+    else: A("    None completed")
+    A("```")
+
+    if nation.get("is_megacorp") or "corporate_data" in nation:
+        L.append(""); L.append(discord_corp_profile(nation,state))
+
+    text="\n".join(L)
+    fname=DISCORD_DIR/f"discord_{nation['name'].replace(' ','_')}_T{turn}.txt"
+    with open(fname,"w",encoding="utf-8") as f: f.write(text)
+    return str(fname)
+
+
+def _discord_market_export(state):
+    """Generate a galactic market report in Discord-ready format."""
+    DISCORD_DIR.mkdir(exist_ok=True)
+    SEP="  " + "─"*57
+    market=state.get("market",{}); mods=market.get("market_modifier",{})
+    base_p=market.get("price_base",{}); ph=market.get("price_history",{})
+    gal_stock,gal_prod,gal_cons=compute_galactic_stockpiles(state)
+    turn=state.get("turn",1); qtr=state.get("quarter",1); year=state.get("year",2200)
+    L=[]; A=L.append
+
+    A(f"-# [GTC] GALACTIC MARKET REPORT")
+    A(f"# GALACTIC MARKET — Q{qtr} [{year}]")
+    A(f"*Issued by the Galactic Trade Confederation — Turn {turn}*")
+
+    # ── COMMODITY OVERVIEW ────────────────────────────────────────────────────
+    A("## COMMODITY OVERVIEW")
+    for rname in _RESOURCES:
+        base=base_p.get(rname,RES_BASE_PRICE[rname]); curr=mods.get(rname,base)
+        mult=curr/base if base else 1.0
+        hist=ph.get(rname,[])
+        trend="▲" if (len(hist)>1 and hist[-1]>hist[-2]) else ("▼" if (len(hist)>1 and hist[-1]<hist[-2]) else "─")
+        pbal=gal_prod[rname]-gal_cons[rname]
+        sd_d=price_shock_delta(rname,gal_prod[rname],gal_cons[rname],curr,base)
+        pressure="↑ Rising" if sd_d>0.01 else ("↓ Falling" if sd_d<-0.01 else "─ Stable")
+        ratio=gal_prod[rname]/gal_cons[rname] if gal_cons[rname]>0 else 99.0
+        mevs=[e for e in state.get("events_log",[]) if e.get("type")=="Market" and e.get("resource")==rname]
+        last_label=mevs[-1].get("label","") if mevs else ""
+        delta_approx=(curr-hist[-2])/hist[-2] if len(hist)>=2 and hist[-2] else 0.0
+        explain=_price_explain(rname,ratio,last_label,delta_approx,curr,base)
+        spark=""
+        if len(hist)>=2:
+            mn=min(hist); mxh=max(hist,default=mn+0.001)
+            spark="".join("▁▂▃▄▅▆▇█"[min(7,int((v-mn)/(mxh-mn+0.001)*8))] for v in hist[-16:])
+        A(f"### {rname}  {trend}"); A("```")
+        A(f"  Current Price    : {curr:.4f} cr   (base: {base:.2f} cr  x{mult:.3f})")
+        A(f"  Galaxy Stock     : {fmt_res(gal_stock[rname])}")
+        A(f"  Production/turn  : {fmt_res(gal_prod[rname])}")
+        A(f"  Demand/turn      : {fmt_res(gal_cons[rname])}")
+        A(f"  Supply Bal/turn  : {fmt_res(pbal)}")
+        A(f"  Pressure         : {pressure}")
+        if spark: A(f"  Price History    : {spark}")
+        if len(hist)>=2: A(f"  Range            : lo {min(hist):.3f}  hi {max(hist):.3f}  now {curr:.3f}")
+        A(SEP)
+        A(f"  Report           : {explain}"); A("```")
+
+    # ── TOP EXPORTERS ─────────────────────────────────────────────────────────
+    A("## TOP EXPORTERS BY RESOURCE"); A("```")
+    for rname in _RESOURCES:
+        ne=[(n["name"],compute_resource_export_credits(n,state).get(rname,0)) for n in state.get("nations",[])]
+        ne.sort(key=lambda x:-x[1]); top=[(nm,c) for nm,c in ne if c>0][:3]
+        if top:
+            top_str="  |  ".join(f"{nation_tag(nm)} {fmt_cr(c)}" for nm,c in top)
+            A(f"  {rname:<16}: {top_str}")
+    A("```")
+
+    # ── PIRACY SUMMARY ────────────────────────────────────────────────────────
+    A("## PIRACY SUMMARY"); A("```")
+    tot_p=sum(r.get("total_pirated",0) for r in state.get("trade_routes",[]))
+    tot_i=sum(r.get("pirate_incidents",0) for r in state.get("trade_routes",[]))
+    A(f"  Total Incidents  : {tot_i}")
+    A(f"  Total Pirated    : {fmt_cr(tot_p)}")
+    hot=[r for r in state.get("trade_routes",[]) if r.get("pirate_incidents",0)>0]
+    if hot:
+        A("")
+        for r in sorted(hot,key=lambda x:-x.get("pirate_incidents",0))[:5]:
+            A(f"  {r.get('name','?'):<28}: x{r.get('pirate_incidents',0)}  {fmt_cr(r.get('total_pirated',0))} stolen")
+    A("```")
+
+    # ── GTC DEBT LEDGER ───────────────────────────────────────────────────────
+    A("## GTC DEBT LEDGER"); A("```")
+    gtc_ldg=market.get("gtc",{}).get("debt_ledger",{})
+    if gtc_ldg:
+        total_owed=sum(e.get("balance",0.0) for e in gtc_ldg.values())
+        A(f"  Total Owed to GTC: {fmt_cr(total_owed)}")
+        A("")
+        for nname,entry in sorted(gtc_ldg.items(),key=lambda x:-x[1].get("balance",0)):
+            bal=entry.get("balance",0.0); rate=entry.get("interest_rate",0.04)
+            qi=bal*rate/4.0; since=entry.get("since_turn",1)
+            A(f"  {nname:<28}: {fmt_cr(bal)}  @ {rate*100:.2f}%  Qtr: {fmt_cr(qi)}  Since T{since}")
+    else: A("  No active GTC debts on record.")
+    A("```")
+
+    text="\n".join(L)
+    fname=DISCORD_DIR/f"discord_market_T{turn}.txt"
+    with open(fname,"w",encoding="utf-8") as f: f.write(text)
+    return str(fname)
+
+# ── pygame drawing primitives ─────────────────────────────────────────────────
+_fonts={}
+def gf(size,mono=True):
+    key=f"{'m' if mono else 's'}{size}"
+    if key not in _fonts:
+        if mono:
+            for name in ("Courier New","Consolas","DejaVu Sans Mono","monospace"):
+                try: _fonts[key]=pygame.font.SysFont(name,size); break
+                except: pass
+            else: _fonts[key]=pygame.font.Font(None,size)
+        else: _fonts[key]=pygame.font.SysFont("Arial",size)
+    return _fonts[key]
+
+def tw(txt,font): return font.size(txt)[0]
+def draw_text(surf,txt,x,y,font,col=TEXT,clip=None):
+    if not txt: return
+    s=font.render(str(txt),True,col)
+    if clip:
+        r=s.get_rect(topleft=(x,y)).clip(clip)
+        if r.width>0: surf.blit(s,(x,y),area=pygame.Rect(0,0,r.width,r.height))
+    else: surf.blit(s,(x,y))
+def draw_rect(surf,rect,col,border=0,radius=0):
+    if radius: pygame.draw.rect(surf,col,rect,border_radius=radius)
+    else: pygame.draw.rect(surf,col,rect,border)
+
+class Scrollbar:
+    W=8
+    def __init__(self,x,y,h):
+        self.rect=pygame.Rect(x,y,self.W,h); self.scroll=0; self.content_h=h; self.view_h=h
+        self._drag=False; self._dy=0
+    def set_content(self,ch,vh):
+        self.content_h=max(ch,vh); self.view_h=vh; self.scroll=max(0,min(self.scroll,self.content_h-self.view_h))
+    def clamp(self): self.scroll=max(0,min(self.scroll,max(0,self.content_h-self.view_h)))
+    def draw(self,surf):
+        draw_rect(surf,self.rect,(12,20,32))
+        if self.content_h<=self.view_h: return
+        ratio=self.view_h/self.content_h; th=max(24,int(self.rect.h*ratio))
+        ty=min(self.rect.y+int((self.scroll/self.content_h)*self.rect.h),self.rect.bottom-th)
+        draw_rect(surf,pygame.Rect(self.rect.x,ty,self.W,th),(44,88,130),radius=3)
+    def on_event(self,ev,hover=True):
+        if ev.type==pygame.MOUSEWHEEL and hover: self.scroll-=ev.y*22; self.clamp()
+        if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1 and self.rect.collidepoint(ev.pos):
+            self._drag=True; self._dy=ev.pos[1]
+        if ev.type==pygame.MOUSEBUTTONUP and ev.button==1: self._drag=False
+        if ev.type==pygame.MOUSEMOTION and self._drag:
+            dy=ev.pos[1]-self._dy; self._dy=ev.pos[1]
+            self.scroll+=int(dy*self.content_h/self.view_h); self.clamp()
+
+class Button:
+    def __init__(self,rect,label,accent=False,small=False,color=None):
+        self.rect=pygame.Rect(rect); self.label=label; self.accent=accent; self.small=small; self.color=color; self._hover=False
+    def draw(self,surf):
+        if self.color: bg=tuple(min(255,c+30) for c in self.color) if self._hover else self.color; bdr=BORDER2
+        else: bg=(BTNACC2 if self._hover else BTNACC) if self.accent else (BTNHOV if self._hover else BTNBG); bdr=ACCENT if self.accent else BORDER2
+        draw_rect(surf,self.rect,bg,radius=3); draw_rect(surf,self.rect,bdr,border=1,radius=3)
+        s=gf(11 if self.small else 12).render(self.label,True,BRIGHT); surf.blit(s,s.get_rect(center=self.rect.center))
+    def on_event(self,ev):
+        if ev.type==pygame.MOUSEMOTION: self._hover=self.rect.collidepoint(ev.pos)
+        if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1 and self.rect.collidepoint(ev.pos): return True
+        return False
+
+class EditOverlay:
+    H=80
+    def __init__(self): self.active=False; self.label=""; self.text=""; self.meta={}; self._blink=0.0
+    def open(self,label,raw,meta):
+        self.active=True; self.label=label; self.text=str(raw) if raw is not None else ""; self.meta=meta; pygame.key.set_repeat(400,40)
+    def close(self): self.active=False; self.text=""; self.meta={}; pygame.key.set_repeat(0,0)
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0; y=SH-self.H-SBAR_H; r=pygame.Rect(0,y,SW,self.H)
+        draw_rect(surf,r,EDITBG); draw_rect(surf,r,EDITBDR,border=1)
+        draw_text(surf,f"Edit: {self.label}",14,y+8,gf(12),CYAN)
+        draw_text(surf,"Enter=confirm  Esc=cancel",SW-240,y+8,gf(11),DIM)
+        bx=pygame.Rect(14,y+28,SW-28,32); draw_rect(surf,bx,(8,18,30)); draw_rect(surf,bx,EDITBDR,border=1)
+        draw_text(surf,self.text,bx.x+6,bx.y+8,gf(12),BRIGHT)
+        if self._blink<0.5:
+            cx=bx.x+6+tw(self.text,gf(12)); pygame.draw.line(surf,CYAN,(cx,bx.y+6),(cx,bx.y+24),1)
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_RETURN: v=self.text; self.close(); return v
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_BACKSPACE: self.text=self.text[:-1]
+            elif ev.unicode and ev.unicode.isprintable(): self.text+=ev.unicode
+        return None
+
+class GMConsoleOverlay:
+    H=110
+    def __init__(self): self.active=False; self.text=""; self.output=""; self._blink=0.0
+    def open(self): self.active=True; self.text=""; self.output="Type 'help' for commands"; pygame.key.set_repeat(400,40)
+    def close(self): self.active=False; self.text=""; pygame.key.set_repeat(0,0)
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        y=SH-self.H-SBAR_H; r=pygame.Rect(0,y,SW,self.H)
+        draw_rect(surf,r,(4,10,20)); draw_rect(surf,r,(0,200,100),border=1)
+        draw_text(surf,"GM CONSOLE  (~=close  Enter=run)",14,y+5,gf(11),(0,220,120))
+        # output (multiline, last 3 lines)
+        lines=self.output.split("\n")[-3:]
+        for i,ln in enumerate(lines): draw_text(surf,ln,14,y+20+i*14,gf(10),DIM)
+        bx=pygame.Rect(14,y+self.H-28,SW-28,22); draw_rect(surf,bx,(6,16,26)); draw_rect(surf,bx,(0,180,90),border=1)
+        draw_text(surf,"> "+self.text,bx.x+4,bx.y+4,gf(11),BRIGHT)
+        if self._blink<0.5:
+            cx=bx.x+4+tw("> "+self.text,gf(11)); pygame.draw.line(surf,(0,220,120),(cx,bx.y+3),(cx,bx.y+17),1)
+    def on_event(self,ev,sm,reload_cb):
+        if not self.active: return
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_BACKQUOTE: self.close(); return
+            if ev.key==pygame.K_ESCAPE: self.close(); return
+            if ev.key==pygame.K_RETURN:
+                self.output=run_gm_command(self.text,sm); self.text=""; reload_cb(); return
+            if ev.key==pygame.K_BACKSPACE: self.text=self.text[:-1]
+            elif ev.unicode and ev.unicode.isprintable() and ev.unicode!="`": self.text+=ev.unicode
+
+def apply_edit(nation,meta,raw):
+    path=meta.get("path",[]); dtype=meta.get("type","float")
+    try:
+        if dtype=="float": val=float(raw.replace(",",""))
+        elif dtype=="pct": val=float(raw.replace("%","").replace(",",""))/100.0
+        elif dtype=="int": val=int(raw.replace(",",""))
+        else: val=raw
+    except: return False
+    obj=nation
+    for key in path[:-1]: obj=obj[key] if isinstance(key,int) else obj.setdefault(key,{})
+    last=path[-1]
+    if isinstance(obj,dict): obj[last]=val
+    elif isinstance(obj,list): obj[last]=val
+    return True
+
+# ── row builders ──────────────────────────────────────────────────────────────
+ROW_H=20; HDR1_H=32; HDR2_H=26; SEP_H=8; BTN_H=28; COL_H=28
+
+def _row(label,val,path=None,dtype="float",vcol=TEXT):
+    meta={"path":path,"type":dtype} if path else None
+    return {"type":"row","label":label,"val":str(val),"meta":meta,"vcol":vcol,"h":ROW_H}
+def _hdr1(txt): return {"type":"hdr1","txt":txt,"h":HDR1_H}
+def _hdr2(txt): return {"type":"hdr2","txt":txt,"h":HDR2_H}
+def _sep(): return {"type":"sep","h":SEP_H}
+def _bar(label,pct,txt,vcol=CYAN): return {"type":"bar","label":label,"pct":pct,"txt":txt,"vcol":vcol,"h":ROW_H}
+def _btn(label,action,data=None,col=None): return {"type":"btn","label":label,"action":action,"data":data or {},"col":col,"h":BTN_H}
+def _ev_row(ev):
+    cr=tuple(ev.get("col_rgb",[84,114,136]))
+    return {"type":"event_row","txt":f"  [{ev['type']:<12}] {str(ev.get('roll','?')):>5}  {ev.get('label','?'):<20}  {ev.get('description','')}","col":cr,"h":ROW_H}
+def _collapse(label,key,expanded,col=TEAL):
+    arrow="▼" if expanded else "▶"
+    return {"type":"collapse","label":f"{arrow} {label}","key":key,"expanded":expanded,"col":col,"h":COL_H}
+
+# ── build_rows ────────────────────────────────────────────────────────────────
+def build_rows(nation,state,tab,collapsed_keys=None,galactic_sub=0):
+    if collapsed_keys is None: collapsed_keys=set()
+    tabs=get_tabs(nation)
+    # map tab name to handler
+    ye=years_elapsed(state); ipeu=nation.get("base_ipeu",0.0)
+    pop=nation.get("population",0.0)*(1.0+nation.get("pop_growth",0.0))**ye
+    species=nation.get("species_populations",[]) or []; star_sys=nation.get("star_systems",[]) or []
+    afd=nation.get("active_forces_detail",[]) or []
+    ugroups={ug["ugid"]:ug for ug in (nation.get("unit_groups") or [])}
+    active_r=nation.get("active_research_projects",[]) or []; done_r=nation.get("completed_techs",[]) or []
+    R=[]
+    homeworld="N/A"
+    for sys in star_sys:
+        for pl in sys.get("planets",[]): homeworld=pl.get("name","N/A"); break
+        break
+    econ=(nation.get("economic_model") or "MIXED").upper()
+
+    # ── OVERVIEW ──────────────────────────────────────────────────────────────
+    if tab=="OVERVIEW":
+        sp_str=", ".join(s["name"] for s in species) if species else "N/A"
+        R+=[_hdr1(f"  {nation['name']}"),
+            _row("Species",sp_str),
+            _row("Population",fmt_pop(pop)),
+            _row("Pop Growth",fmt_pct(nation.get("pop_growth",0)),["pop_growth"],"pct",CYAN),
+            _row("Homeworld",homeworld),
+            _row("Civ Level",nation.get("civ_level","N/A"),["civ_level"],"str"),
+            _row("Civ Tier",nation.get("civ_tier","N/A"),["civ_tier"],"int"),
+            _sep(),_hdr2("ECONOMIC MODEL")]
+        # clickable model selector buttons
+        for em in ECON_MODELS:
+            col=(22,60,36) if econ==em else (18,36,56)
+            R.append(_btn(f"  {'►' if econ==em else ' '} {em}","set_econ_model",{"model":em},col))
+        R+=[_row("Eco Status",nation.get("eco_status","Stable"),["eco_status"],"str"),
+            _sep(),_hdr2("DEMOGRAPHICS"),
+            _row("Total Pop",fmt_pop(pop)),
+            _row("Avg Loyalty",f"{_avg_loyalty(nation):.1f}/100",vcol=CYAN),
+            _row("Manpower Pool",fmt_pop(compute_manpower(nation)),vcol=GOLD)]
+        for si,s in enumerate(species):
+            sp_p=s.get("population",0); shr=sp_p/pop*100 if pop else 0
+            loy=s.get("loyalty",0); lc=GREEN if loy>=70 else (GOLD if loy>=40 else RED_C)
+            hap=s.get("happiness",0)
+            tithe_lbl=""
+            rel=(s.get("religion") or "").lower()
+            if any(k in rel for k in CHRISTIAN_KEYWORDS): tithe_lbl=" ✝"
+            R+=[_sep(),{"type":"species_hdr","name":s["name"]+tithe_lbl,"status":s.get("status",""),"h":HDR2_H},
+                _row("  Population",fmt_pop(sp_p),["species_populations",si,"population"],"float",CYAN),
+                _row("  Share",f"{shr:.1f}% - {s.get('status','?').title()}"),
+                _row("  Loyalty",f"{loy}/100  {bar_str(loy/100,12)}",["species_populations",si,"_base_loyalty"],"float",lc),
+                _row("  Happiness",f"{hap}/100" if isinstance(hap,(int,float)) else str(hap),vcol=CYAN),
+                _row("  Conscript Rate",fmt_pct(s.get("conscription_rate",nation.get("conscription_rate",0.05))),
+                     ["species_populations",si,"conscription_rate"],"pct",DIM),
+                _row("  Culture",s.get("culture","N/A"),["species_populations",si,"culture"],"str"),
+                _row("  Language",s.get("language","N/A"),["species_populations",si,"language"],"str"),
+                _row("  Religion",s.get("religion","N/A"),["species_populations",si,"religion"],"str")]
+        R+=[_sep(),_hdr2("RESEARCH"),_row("RP Budget/turn",fmt_cr(nation.get("research_budget",0)),["research_budget"],"float",CYAN)]
+        for p in active_r: R.append(_bar(f"  {p.get('name','?')}",p.get("progress",0)/100,f"{p.get('progress',0):.1f}%",CYAN))
+        if not active_r: R.append(_row("  Active","None",vcol=DIM))
+        if done_r: R.append(_row("  Completed",f"{len(done_r)} techs",vcol=GREEN))
+
+    # ── ECONOMY ───────────────────────────────────────────────────────────────
+    elif tab=="ECONOMY":
+        exp=nation.get("expenditure",{}) if isinstance(nation.get("expenditure"),dict) else {}
+        res=compute_resources(nation,ipeu)
+        debt=compute_debt(nation,ipeu); rb=nation.get("research_budget",0.0); sf=nation.get("strategic_fund",0.0)
+        export_cr=compute_resource_export_credits(nation,state)
+        planet_markets,tax_inc=compute_planet_local_market(nation,state,ipeu)
+        eff=spending_effects(nation,ipeu)
+        tithe=compute_church_tithe(nation,state)
+        tithe_in=compute_tithe_income(nation,state)
+        total_exp=sum(exp.values())*ipeu+rb
+        trade_data=compute_trade(nation,state.get("trade_routes",[]))
+        trade_net=trade_data["net"]
+        net_bal=ipeu+trade_net+tax_inc+tithe_in-total_exp-debt["q_interest"]-tithe
+        eco_mod=econ_model_ipeu_modifier(nation); nc=GREEN if net_bal>=0 else RED_C
+        ipeu_current=ipeu*eco_mod
+        mil_cons=compute_military_consumption(nation)
+        R+=[_hdr1("ECONOMY"),
+            _row("Economic Model",econ,vcol=GOLD),
+            _row("IPEU (base)",fmt_cr(ipeu),["base_ipeu"],"float",GOLD),
+            _row("IPEU (current)",fmt_cr(ipeu_current),vcol=BRIGHT),
+            _row("Eco Multiplier",f"x{eco_mod:.3f}",vcol=CYAN),
+            _row("IPEU Growth",fmt_pct(nation.get("ipeu_growth",0)),["ipeu_growth"],"pct",CYAN),
+            _row("IPEU/Capita",f"{int(ipeu/pop):,} cr" if pop else "N/A"),
+            _row("Trade Revenue",fmt_cr(trade_net)),
+            _row("  Exports",fmt_cr(trade_data["exports"]),vcol=GREEN),
+            _row("  Imports",fmt_cr(trade_data["imports"]),vcol=RED_C),
+            _row("  Transit",fmt_cr(trade_data["transit_income"]),vcol=TEAL),
+            _row("Local Mkt Tax",fmt_cr(tax_inc),vcol=CYAN)]
+        if tithe_in>0:
+            R.append(_row("Tithe Income",f"+{fmt_cr(tithe_in)}",vcol=GOLD))
+        if tithe>0:
+            R.append(_row("Church Tithe",f"-{fmt_cr(tithe)}",vcol=GOLD))
+        R+=[_row("Research Bgt",fmt_cr(rb),["research_budget"],"float",CYAN),
+            _row("Total Expend.",fmt_cr(total_exp)),
+            _row("Net Balance",fmt_cr(net_bal),vcol=nc),
+            _sep(),_hdr2("EXPENDITURE")]
+        mx=max(exp.values(),default=0.01)
+        for cat,pct in exp.items(): R.append(_bar(f"  {cat}",pct/mx,f"{pct*100:.1f}%  {fmt_cr(pct*ipeu)}"))
+        R+=[_sep(),_hdr2("SPENDING EFFECTS"),
+            _row("  Infra Trade Bonus",f"+{eff['infra_trade_bonus']:.1f}% attract.",vcol=TEAL),
+            _row("  PopDev Growth",f"+{eff['popdev_growth_bonus']:.3f}%/yr",vcol=GREEN),
+            _row("  Military Morale",f"+{eff['mil_morale_bonus']:.1f}%",vcol=CYAN),
+            _row("  Combat Power",f"{eff['mil_combat_power']:.3f} Tcr",vcol=CYAN)]
+        if econ in ("PLANNED","MIXED"):
+            loy=_avg_loyalty(nation); lc=GREEN if loy>=70 else (GOLD if loy>=40 else RED_C)
+            R+=[_sep(),_hdr2("PLANNED: DISTRIBUTION & EFFICIENCY"),
+                _row("  Avg Loyalty",f"{loy:.1f}/100",vcol=lc),
+                _row("  Resource Eff.",f"{100*(1.0+max(0,loy-50)/200):.1f}%",vcol=CYAN),
+                _row("  Dist. Bonus","Active — loyalty+5",vcol=GREEN)]
+        if econ in ("MARKET","MIXED"):
+            R+=[_sep(),_hdr2("MARKET: LOCAL PLANET OUTPUT")]
+            for pm in planet_markets[:8]:
+                col=GREEN if pm["attractiveness"]>60 else (GOLD if pm["attractiveness"]>30 else RED_C)
+                R.append(_row(f"  {pm['planet'][:22]}",f"Attr:{pm['attractiveness']:.0f}  Tax:{fmt_cr(pm['tax_income'])}",vcol=col))
+            sub_cost,inv_bonus=compute_subsidies(nation,ipeu)
+            R+=[_row("  Subsidy Cost",fmt_cr(sub_cost),["subsidy_rate"],"pct",RED_C),
+                _row("  Invest Bonus",f"+{inv_bonus:.1f} attr.",["investment_rate"],"pct",GREEN)]
+        R+=[_sep(),_hdr2("MILITARY CONSUMPTION"),
+            _row("  Food",fmt_res(mil_cons["Food"])+" / turn",vcol=RED_C if mil_cons["Food"]>0 else DIM),
+            _row("  Alloys",fmt_res(mil_cons["Alloys"])+" / turn",vcol=RED_C if mil_cons["Alloys"]>0 else DIM)]
+        eproj=nation.get("economic_projects") or []
+        ep_key="eco_projects"; ep_open=ep_key not in collapsed_keys
+        R+=[_sep(),_collapse(f"ECONOMIC PROJECTS  ({len(eproj)} active)",ep_key,ep_open,GOLD)]
+        if ep_open:
+            R.append(_btn("  + New Project","open_eco_project",{},(30,50,20)))
+            for epi,ep in enumerate(eproj):
+                pc=GREEN if ep.get("status")=="active" else DIM
+                tr2=ep.get("turns_remaining",0); tt=ep.get("total_turns",1)
+                R+=[_row(f"  [{ep.get('type','?')}] {ep.get('name','?')[:28]}",
+                         f"Cost:{fmt_cr(ep.get('cost_per_turn',0))}/t  {tr2}/{tt}t left",vcol=pc),
+                    _btn(f"    \u2715 Remove","remove_eco_project",{"epi":epi},(60,18,18))]
+        R+=[_sep(),_hdr2("FISCAL REPORT")]
+        dc=RED_C if debt["is_debtor"] else GREEN
+        R+=[_row("Status","Debtor" if debt["is_debtor"] else "Creditor",vcol=dc),
+            _row("Debt Balance",fmt_cr(debt["balance"]),["debt_balance"],"float"),
+            _row("Debt Load",f"{debt['load_pct']:.1f}%"),
+            _row("Interest Rate",f"{debt['rate']*100:.2f}%",["interest_rate"],"pct",CYAN),
+            _row("Quarterly Int.",fmt_cr(debt["q_interest"])),
+            _row("Debt Repayment",fmt_cr(debt["repayment"]),["debt_repayment"],"float")]
+        gtc_e=compute_gtc_debt(nation,state)
+        if gtc_e:
+            gtc_bal=gtc_e.get("balance",0.0); gtc_rate=gtc_e.get("interest_rate",0.04)
+            gtc_qi=gtc_bal*gtc_rate/4.0; gtc_rep=gtc_e.get("repayment",0.0)
+            gtc_since=gtc_e.get("since_turn",1)
+            R+=[_sep(),_hdr2("GTC DEBT — GALACTIC TRADE CONFEDERATION"),
+                _row("  Creditor","Galactic Trade Confederation",vcol=GOLD),
+                _row("  Principal",fmt_cr(gtc_e.get("balance",0.0)),vcol=RED_C),
+                _row("  Interest Rate",f"{gtc_rate*100:.2f}% p.a.",vcol=CYAN),
+                _row("  Quarterly Int.",fmt_cr(gtc_qi),vcol=RED_C),
+                _row("  Repayment/Qtr",fmt_cr(gtc_rep) if gtc_rep else "None set",vcol=DIM),
+                _row("  Debt Since",f"Turn {gtc_since}",vcol=DIM),
+                _row("  Note",gtc_e.get("note",""),vcol=DIM)]
+        sf_c=GREEN if sf>=0 else RED_C; fd=-debt["q_interest"]
+        R+=[_row("Strategic Fund",fmt_cr(sf),["strategic_fund"],"float",sf_c),
+            _row("Fund dt/turn",(f"+{fmt_cr(fd)}" if fd>=0 else fmt_cr(fd)),vcol=sf_c),
+            _sep(),_hdr2("RESOURCES & STOCKPILES")]
+        for rname in _RESOURCES:
+            rd=res[rname]; tc=GREEN if rd["net"]>0 else (RED_C if rd["net"]<0 else DIM); exc=export_cr.get(rname,0.0)
+            mc=rd.get("mil_consumption",0.0)
+            R+=[_row(f"  {rname}",""),
+                _row("    Stockpile",fmt_res(rd["stockpile"])),
+                _row("    Production",fmt_res(rd["production"])),
+                _row("    Consumption",fmt_res(rd["consumption"]))]
+            if mc>0: R.append(_row("    (Military)",fmt_res(mc),vcol=RED_C))
+            R+=[_row("    Net/turn",fmt_res(rd["net"]),vcol=tc),
+                _row("    Export Rev",fmt_cr(exc),vcol=GREEN if exc>0 else DIM),
+                _row("    Trend",rd["trend"],vcol=tc),_sep()]
+        # construction queue
+        cq=nation.get("construction_queue") or []
+        R.append(_hdr2(f"CONSTRUCTION QUEUE  ({len(cq)} items)"))
+        if cq:
+            for item in cq:
+                R.append(_row(f"  {item['district_type']}",
+                    f"@ {item['settlement_name']}  {item['turns_remaining']}t left",vcol=LIME))
+        else: R.append(_row("  Empty","",vcol=DIM))
+
+    # ── COLONY ────────────────────────────────────────────────────────────────
+    elif tab=="COLONY":
+        vs=nation.get("vessel_stats",{}); vsp=nation.get("vessel_stockpiles",{})
+        vres=compute_vessel_resources(nation)
+        R+=[_hdr1("COLONY VESSEL"),
+            _row("Pop Capacity",fmt_pop(vs.get("pop_capacity",0)),["vessel_stats","pop_capacity"],"float",CYAN),
+            _row("Population",fmt_pop(pop)),
+            _sep(),_hdr2("VESSEL STATS — EDIT")]
+        for field,label in [("food_production","Food Prod"),("food_consumption","Food Cons"),
+                              ("mineral_extraction","Mineral Ext"),("alloy_production","Alloy Prod"),
+                              ("energy_production","Energy Prod"),("energy_consumption","Energy Cons")]:
+            R.append(_row(f"  {label}",fmt_res(vs.get(field,0)),["vessel_stats",field],"float",TEAL))
+        R+=[_sep(),_hdr2("VESSEL STOCKPILES")]
+        for rname in ["Food","Minerals","Alloys","Energy"]:
+            rd=vres[rname]; tc=GREEN if rd["net"]>0 else (RED_C if rd["net"]<0 else DIM)
+            stock_val=vsp.get(rname,0.0)
+            R+=[_row(f"  {rname} Stockpile",fmt_res(stock_val),["vessel_stockpiles",rname],"float"),
+                _row(f"  {rname} Net/turn",fmt_res(rd["net"]),vcol=tc),
+                _row(f"  {rname} Trend",rd["trend"],vcol=tc),_sep()]
+        R+=[_hdr2("COLONY PROGRESS")]
+        for cp in get_colony_progress(nation):
+            col_pct=cp["colonization_pct"]; exp_pct=cp["explored_pct"]
+            cc=GREEN if col_pct>50 else (GOLD if col_pct>20 else RED_C)
+            R+=[_row(f"  {cp['planet']} ({cp['system']})","",vcol=TEAL),
+                _bar(f"    Colonized",col_pct/100,f"{col_pct:.1f}%",cc),
+                _bar(f"    Explored",exp_pct/100,f"{exp_pct:.1f}%",CYAN),
+                _row(f"    Population",fmt_pop(cp["pop"]))]
+        R+=[_sep(),_hdr2("COLONY EVENTS (last 20)")]
+        elog=state.get("events_log",[]) or []
+        cevs=[e for e in reversed(elog) if e.get("nation")==nation["name"] and e.get("type")=="Colony"][:20]
+        if not cevs: R.append(_row("  No events yet","",vcol=DIM))
+        for e in cevs: R.append(_ev_row(e))
+
+    # ── MILITARY ──────────────────────────────────────────────────────────────
+    elif tab=="MILITARY":
+        exp=nation.get("expenditure",{}) if isinstance(nation.get("expenditure"),dict) else {}
+        eff=spending_effects(nation,ipeu)
+        mil_pct=exp.get("Military",0.0)
+        mil_cons=compute_military_consumption(nation)
+        manpower=compute_manpower(nation)
+        mc=GREEN if eff["mil_morale_bonus"]>15 else (GOLD if eff["mil_morale_bonus"]>5 else DIM)
+        R+=[_hdr1("MILITARY"),
+            _row("Military Spending",f"{mil_pct*100:.1f}% of IPEU",vcol=CYAN),
+            _row("Morale Bonus",f"+{eff['mil_morale_bonus']:.1f}%",vcol=mc),
+            _row("Combat Power",f"{eff['mil_combat_power']:.3f} Tcr",vcol=GOLD),
+            _sep(),_hdr2("MANPOWER"),
+            _row("  Total Pool",fmt_pop(manpower),vcol=GOLD),
+            _row("  Stored Pool",fmt_pop(nation.get("manpower_pool",0)),vcol=DIM)]
+        for si,s in enumerate(species):
+            sp_pop=s.get("population",0)
+            cr=s.get("conscription_rate",nation.get("conscription_rate",0.05))
+            loy=s.get("loyalty",50); vol=max(0,(loy-40)/200.0)
+            contrib=sp_pop*(cr+vol)+s.get("gm_manpower_adj",0.0)
+            R.append(_row(f"  {s['name'][:20]}",
+                f"Conscript:{cr*100:.1f}%  Vol:{vol*100:.1f}%  Pool:{fmt_pop(contrib)}",vcol=TEAL))
+        R+=[_sep(),_hdr2("CONSUMPTION THIS TURN"),
+            _row("  Food",fmt_res(mil_cons["Food"])+" / turn",vcol=RED_C if mil_cons["Food"]>0 else DIM),
+            _row("  Alloys",fmt_res(mil_cons["Alloys"])+" / turn",vcol=RED_C if mil_cons["Alloys"]>0 else DIM),
+            _sep()]
+        for hdr,cats in [("SPACEFLEET",["Spacefleet","Navy"]),("AEROSPACE FORCES",["Air Force","Aerospace"]),
+                          ("GROUND FORCES",["Ground Forces","Ground","Army"])]:
+            units=[u for u in afd if u.get("category") in cats]; R.append(_hdr2(hdr))
+            if units:
+                gd={}
+                for u in units:
+                    ugid=u.get("ugid"); grp=ugroups[ugid]["name"] if ugid and ugid in ugroups else "Unassigned"
+                    gd.setdefault(grp,[]).append(u)
+                for grp,us in gd.items():
+                    R.append(_row(f"  [{grp}]","",vcol=GOLD))
+                    for u in us:
+                        afd_idx=afd.index(u) if u in afd else -1  # safe index into full afd list
+                        nm=u.get("custom_name") or u.get("unit","?")
+                        cnt=u.get("count",1)
+                        uname=u.get("unit","")
+                        cat2=u.get("category","")
+                        if cat2 in ("Ground Forces","Ground","Army"):
+                            food_c=cnt*GROUND_DIVISION_SIZE*GROUND_FOOD_PER_SOLDIER
+                            alloy_c=cnt*GROUND_ALLOY_PER_DIVISION
+                        else:
+                            food_c=UNIT_CREW.get(uname,0)*cnt
+                            alloy_c=UNIT_ALLOY_CON.get(uname,0)*cnt
+                        cons_str=f"F:{fmt_res(food_c)} A:{fmt_res(alloy_c)}"
+                        R.append(_row(f"    {nm}",f"x{cnt} | {u.get('veterancy','?')} | {cons_str}",vcol=TEXT))
+                        if afd_idx>=0: R.append(_btn(f"      ✏ Edit","edit_unit",{"unit_idx":afd_idx},(16,32,52)))
+            else: R.append(_row("  None","",vcol=DIM))
+            R.append(_sep())
+        R.append(_hdr2("ARSENAL"))
+        for a in (nation.get("arsenal",[]) or []):
+            R.append(_row(f"  {a.get('name','?')}",f"{a.get('type','?')} | {a.get('size','?')} | Crew {a.get('crew','?')}"))
+        if not (nation.get("arsenal") or []): R.append(_row("  None","",vcol=DIM))
+
+        R+=[_sep(),_btn("+ Add / Edit Unit","open_unit_builder",{},(20,40,70))]
+        # ── military deaths ──
+        mil_deaths=nation.get("military_deaths") or []
+        if mil_deaths:
+            R+=[_sep(),_hdr2("MILITARY CASUALTIES")]
+            _LIFE_STAGES=["Teen","Young Adult","Adult","Middle Aged","Senior"]
+            by_sp={}
+            for d in mil_deaths:
+                sp_n=d.get("species","Unknown"); by_sp.setdefault(sp_n,[]).append(d)
+            for sp_n,deaths in by_sp.items():
+                total_d=sum(d.get("count",0) for d in deaths)
+                R.append(_row(f"  {sp_n[:22]}",f"Total: {fmt_pop(total_d)} KIA",vcol=RED_C))
+                stage_totals={ls:0 for ls in _LIFE_STAGES}
+                for d in deaths:
+                    ls=d.get("life_stage","Adult")
+                    if ls in stage_totals: stage_totals[ls]+=d.get("count",0)
+                for ls,cnt in stage_totals.items():
+                    if cnt>0:
+                        pct=cnt/total_d*100 if total_d else 0
+                        R.append(_row(f"    {ls}",f"{fmt_pop(cnt)}  ({pct:.1f}%)",vcol=ORANGE))
+        R+=[_sep(),_btn("+ Log Casualties","open_casualties",{},(60,20,20))]
+    # ── TERRITORY ─────────────────────────────────────────────────────────────
+    elif tab=="TERRITORY":
+        R+=[_hdr1("TERRITORIES"),_btn("+ Add System","add_system",{},(22,60,36)),_sep()]
+        if not star_sys: R.append(_row("No territorial data","",vcol=DIM))
+        else:
+            for si,sys in enumerate(star_sys):
+                sk=f"sys_{si}"; sx=sk not in collapsed_keys
+                R.append(_collapse(f"System: {sys['name']}  ({len(sys.get('planets',[]))} planets)",sk,sx,CYAN))
+                if sx:
+                    R+=[_row("  Name",sys["name"],["star_systems",si,"name"],"str"),
+                        _row("  Notes",sys.get("notes",""),["star_systems",si,"notes"],"str"),
+                        _row("  Coords",sys.get("coordinates",""),["star_systems",si,"coordinates"],"str"),
+                        _btn("  + Add Planet","add_planet",{"si":si},(22,50,70))]
+                    for pi,planet in enumerate(sys.get("planets",[])):
+                        pk=f"planet_{si}_{pi}"; px=pk not in collapsed_keys
+                        hab=planet.get("habitability",50); dev=planet.get("devastation",0)
+                        R.append(_collapse(f"  > {planet.get('name','?')}  [{planet.get('type','?')}]  Hab:{hab:.0f} Dev:{dev:.0f}",pk,px,TEAL))
+                        if px:
+                            R+=[_row("    Name",planet["name"],["star_systems",si,"planets",pi,"name"],"str"),
+                                _row("    Type",planet.get("type",""),["star_systems",si,"planets",pi,"type"],"str"),
+                                _row("    Size",planet.get("size",""),["star_systems",si,"planets",pi,"size"],"str"),
+                                _row("    Climate",planet.get("climate",""),["star_systems",si,"planets",pi,"climate"],"str"),
+                                _row("    Habitability",planet.get("habitability",""),["star_systems",si,"planets",pi,"habitability"],"float"),
+                                _row("    Devastation",planet.get("devastation",0),["star_systems",si,"planets",pi,"devastation"],"float",RED_C),
+                                _row("    Crime Rate",planet.get("crime_rate",0),["star_systems",si,"planets",pi,"crime_rate"],"float"),
+                                _row("    Unrest",planet.get("unrest",0),["star_systems",si,"planets",pi,"unrest"],"float"),
+                                _row("    Population",fmt_pop(planet.get("pop_assigned",0))),
+                                _row("    Settlements",f"{len(planet.get('settlements',[]) or [])}",vcol=CYAN)]
+                            for sett_i,s in enumerate(planet.get("settlements",[]) or []):
+                                R.append(_row(f"      o {s['name']}",f"Pop {fmt_pop(s.get('population',0))}  Loy {s.get('loyalty',0):.0f}%"))
+                                dc={}
+                                for d in s.get("districts",[]): dt=d.get("type","?"); dc[dt]=dc.get(dt,0)+1
+                                if dc: R.append(_row("        Districts","  ".join(f"{t}x{c}" for t,c in dc.items()),vcol=DIM))
+                                # construction submenu
+                                bk=f"build_{si}_{pi}_{sett_i}"; bx2=bk not in collapsed_keys
+                                R.append(_collapse(f"        + Build District",bk,bx2,LIME))
+                                if bx2:
+                                    for dt in _DISTRICT_TYPES:
+                                        mc=DISTRICT_MINERAL_COST.get(dt,20); bt=DISTRICT_BUILD_TURNS.get(dt,3)
+                                        R.append(_btn(f"          {dt}  [{mc}Min/{bt}t]","build_district",
+                                            {"si":si,"pi":pi,"sett_i":sett_i,"district_type":dt},(30,50,30)))
+                                # manage/remove districts
+                                mk=f"mandistrict_{si}_{pi}_{sett_i}"; mx2=mk not in collapsed_keys
+                                nd=len(s.get("districts",[]))
+                                R.append(_collapse(f"        ✕ Manage Districts ({nd})",mk,mx2,RED_C))
+                                if mx2:
+                                    for di,dd in enumerate(s.get("districts",[])):
+                                        R.append(_btn(f"          [{dd.get('type','?')}] ({dd.get('status','Operational')})  Remove",
+                                            "confirm_remove_district",{"si":si,"pi":pi,"sett_i":sett_i,"di":di},(70,18,18)))
+                            platforms=planet.get("platforms",[]) or []
+                            if platforms:
+                                R.append(_row("    Platforms",f"{len(platforms)} installed",vcol=PURPLE))
+                                for pi2,plat in enumerate(platforms):
+                                    R.append(_row(f"      [{plat.get('type','?')}]",plat.get("name","?"),
+                                                  ["star_systems",si,"planets",pi,"platforms",pi2,"name"],"str",PURPLE))
+                            R+=[_btn("    + Mining Platform","add_platform",{"si":si,"pi":pi,"ptype":"Mining"},(40,20,60)),
+                                _btn("    + Hydroponics","add_platform",{"si":si,"pi":pi,"ptype":"Hydroponics"},(20,50,40)),
+                                _btn("    + Research Platform","add_platform",{"si":si,"pi":pi,"ptype":"Research"},(20,40,60)),
+                                _btn("    + Dockyards","add_platform",{"si":si,"pi":pi,"ptype":"Dockyards"},(40,30,20)),
+                                _btn(f"    Randomize Planet","randomize_planet",{"si":si,"pi":pi},(60,30,80)),
+                                _btn(f"    ✕ Remove Planet","confirm_remove_planet",{"si":si,"pi":pi},(70,18,18)),_sep()]
+                R.append(_sep())
+
+    # ── MARKET ────────────────────────────────────────────────────────────────
+    elif tab=="MARKET":
+        market=state.get("market",{}); mods=market.get("market_modifier",{})
+        base_p=market.get("price_base",{}); ph=market.get("price_history",{})
+        routes=state.get("trade_routes",[]) or []
+        export_cr=compute_resource_export_credits(nation,state)
+        R+=[_hdr1("NATION MARKET VIEW"),_hdr2("RESOURCE PRICES")]
+        for rname in _RESOURCES:
+            base=base_p.get(rname,RES_BASE_PRICE[rname]); curr=mods.get(rname,base); mult=curr/base if base else 1.0
+            col=GREEN if mult>1.05 else (RED_C if mult<0.95 else DIM)
+            hist=ph.get(rname,[])
+            trend="▲" if (len(hist)>1 and hist[-1]>hist[-2]) else ("▼" if (len(hist)>1 and hist[-1]<hist[-2]) else "─")
+            exc=export_cr.get(rname,0.0)
+            R.append(_row(f"  {rname}",f"{curr:.3f} cr  base:{base:.2f}  x{mult:.2f}  {trend}  ExRev:{fmt_cr(exc)}",vcol=col))
+            if hist:
+                mn=min(hist[-8:]); mxh=max(hist[-8:],default=mn+0.001)
+                bh="".join("_..,-+|#"[min(7,int((v-mn)/(mxh-mn+0.001)*8))] for v in hist[-8:])
+                R.append(_row("    History (8t)",f"{bh}  lo:{mn:.3f} hi:{mxh:.3f}",vcol=DIM))
+        R+=[_sep(),_hdr2(f"TRADE ROUTES ({len(routes)} total)"),
+            _btn("  + New Trade Route","open_trade_builder",{},(20,55,30))]
+        for r in routes:
+            st=r.get("status","?"); sc=GREEN if st=="active" else RED_C
+            pl=r.get("_piracy_loss_this_turn",0.0); pc=RED_C if pl>0 else DIM
+            R+=[_row(f"  [{r.get('id','?')}] {r.get('name','')}",f"{r.get('resource','?')}  {fmt_cr(r.get('credits_per_turn',0))}/t  [{st}]",vcol=sc),
+                _row(f"    {r.get('exporter','?')} → {r.get('importer','?')}","",vcol=DIM),
+                _row("    Piracy",f"Dist:{r.get('pirate_distance','?')}  Inc:{r.get('pirate_incidents',0)}  Total:{fmt_cr(r.get('total_pirated',0))}",vcol=pc),
+                _btn(f"    ✏ Edit Route","edit_trade_route",{"route_id":r.get("id")},(20,35,55))]
+            if r.get("transit_nations"):
+                tns=", ".join(f"{t.get('nation','?')}({t.get('tax_rate',0)*100:.0f}%)" for t in r["transit_nations"])
+                R.append(_row("    Transit",tns,vcol=DIM))
+        if not routes: R.append(_row("  No trade routes","",vcol=DIM))
+
+    # ── GALACTIC ──────────────────────────────────────────────────────────────
+    elif tab=="GALACTIC":
+        market=state.get("market",{}); mods=market.get("market_modifier",{})
+        base_p=market.get("price_base",{}); ph=market.get("price_history",{})
+        gal_stock,gal_prod,gal_cons=compute_galactic_stockpiles(state)
+        # spacer so rows start below the galactic subtab bar
+        R.append({"type":"sep","h":GSUB_H+2})
+
+        # ── OVERVIEW subtab ───────────────────────────────────────────────────
+        if galactic_sub==0:
+            R+=[_hdr1("GALACTIC MARKET"),
+                _btn("  Open Graphs","open_graphs",{},(30,20,65)),
+                _hdr2("COMMODITY OVERVIEW")]
+            for rname in _RESOURCES:
+                base=base_p.get(rname,RES_BASE_PRICE[rname]); curr=mods.get(rname,base); mult=curr/base if base else 1.0
+                col=GREEN if mult>1.1 else (RED_C if mult<0.9 else (GOLD if mult>1.0 else DIM))
+                pbal=gal_prod[rname]-gal_cons[rname]; bal_col=GREEN if pbal>0 else RED_C
+                hist=ph.get(rname,[])
+                trend="▲" if (len(hist)>1 and hist[-1]>hist[-2]) else ("▼" if (len(hist)>1 and hist[-1]<hist[-2]) else "─")
+                sd_d=price_shock_delta(rname,gal_prod[rname],gal_cons[rname],curr,base)
+                pressure="↑" if sd_d>0.01 else ("↓" if sd_d<-0.01 else "─")
+                ratio=gal_prod[rname]/gal_cons[rname] if gal_cons[rname]>0 else 99.0
+                mevs=[e for e in state.get("events_log",[]) if e.get("type")=="Market" and e.get("resource")==rname]
+                last_label=mevs[-1].get("label","") if mevs else ""
+                delta_approx=(curr-hist[-2])/hist[-2] if len(hist)>=2 and hist[-2] else 0.0
+                explain=_price_explain(rname,ratio,last_label,delta_approx,curr,base)
+                R+=[_hdr2(f"  {rname}  {curr:.3f} cr  {trend}  Pressure:{pressure}"),
+                    _row("    Galaxy Stockpile",fmt_res(gal_stock[rname])),
+                    _row("    Galaxy Production",fmt_res(gal_prod[rname]),vcol=GREEN),
+                    _row("    Galaxy Demand",fmt_res(gal_cons[rname]),vcol=RED_C),
+                    _row("    Supply/Demand Bal",f"{fmt_res(pbal)}/turn",vcol=bal_col),
+                    _row("    Price Multiplier",f"x{mult:.3f}  base {base:.2f}",vcol=col),
+                    _row("    Report",explain,vcol=CYAN)]
+                if len(hist)>=2:
+                    mn=min(hist); mxh=max(hist,default=mn+0.001)
+                    spark="".join("▁▂▃▄▅▆▇█"[min(7,int((v-mn)/(mxh-mn+0.001)*8))] for v in hist[-16:])
+                    R.append(_row("    Price History",spark,vcol=CYAN))
+                    R.append(_row("    Range",f"lo:{mn:.3f}  hi:{mxh:.3f}  now:{curr:.3f}",vcol=DIM))
+                R.append(_sep())
+            R+=[_hdr2("TOP EXPORTERS BY RESOURCE")]
+            for rname in _RESOURCES:
+                ne=[(n["name"],compute_resource_export_credits(n,state).get(rname,0)) for n in state.get("nations",[])]
+                ne.sort(key=lambda x:-x[1]); top=[(nm,c) for nm,c in ne if c>0][:3]
+                if top: R.append(_row(f"  {rname}","  |  ".join(f"{nation_tag(nm)} {fmt_cr(c)}" for nm,c in top),vcol=TEAL))
+            R+=[_sep(),_hdr2("PIRACY SUMMARY")]
+            tot_p=sum(r.get("total_pirated",0) for r in state.get("trade_routes",[]))
+            tot_i=sum(r.get("pirate_incidents",0) for r in state.get("trade_routes",[]))
+            R+=[_row("  Total Incidents",str(tot_i),vcol=RED_C),_row("  Total Pirated",fmt_cr(tot_p),vcol=RED_C)]
+            for r in state.get("trade_routes",[]):
+                if r.get("pirate_incidents",0)>0:
+                    R.append(_row(f"  {r.get('name','?')}",f"x{r.get('pirate_incidents',0)}  {fmt_cr(r.get('total_pirated',0))} stolen",vcol=ORANGE))
+            R+=[_sep(),_hdr2("CHURCH TITHES")]
+            for n in state.get("nations",[]):
+                t=compute_church_tithe(n,state)
+                if t>0: R.append(_row(f"  {n['name'][:26]}",fmt_cr(t),vcol=GOLD))
+            R+=[_sep(),_hdr2("GTC — GALACTIC TRADE CONFEDERATION DEBT LEDGER")]
+            gtc_ldg=market.get("gtc",{}).get("debt_ledger",{})
+            if gtc_ldg:
+                total_owed=sum(e.get("balance",0.0) for e in gtc_ldg.values())
+                R.append(_row("  Total Owed to GTC",fmt_cr(total_owed),vcol=GOLD))
+                for nname,entry in sorted(gtc_ldg.items(),key=lambda x:-x[1].get("balance",0)):
+                    bal=entry.get("balance",0.0); rate=entry.get("interest_rate",0.04)
+                    qi=bal*rate/4.0; since=entry.get("since_turn",1)
+                    R+=[_row(f"  {nname[:24]}",fmt_cr(bal),vcol=RED_C if bal>0 else GREEN),
+                        _row(f"    Interest/Qtr",fmt_cr(qi),vcol=DIM),
+                        _row(f"    Rate / Since",f"{rate*100:.2f}%  Turn {since}",vcol=DIM)]
+            else:
+                R.append(_row("  No GTC debt recorded","",vcol=DIM))
+            R+=[_sep(),_hdr2("PSST NATIONS")]
+            psst=market.get("psst_nations",[])
+            for n in psst: R.append(_row(f"  {n}","",vcol=GOLD))
+            if not psst: R.append(_row("  None listed","",vcol=DIM))
+
+        # ── PRICE REPORT subtab ───────────────────────────────────────────────
+        elif galactic_sub==1:
+            turn=state.get("turn",1)
+            R+=[_hdr1("GALACTIC PRICE REPORT"),
+                _hdr2("SHOCK TABLE REFERENCE")]
+            for lo,hi,label,(dlo,dhi),col in _MARKET_SHOCK:
+                range_str=f"d20 [{lo}-{hi}]"
+                delta_str=f"{dlo*100:+.0f}% to {dhi*100:+.0f}%" if (dlo,dhi)!=(0.0,0.0) else "No change"
+                R.append(_row(f"  {label}",f"{range_str}   {delta_str}",vcol=col))
+            R+=[_sep(),_hdr2("PER-COMMODITY PRICE ANALYSIS")]
+            for rname in _RESOURCES:
+                base=base_p.get(rname,RES_BASE_PRICE[rname]); curr=mods.get(rname,base)
+                mult=curr/base if base else 1.0
+                hist=ph.get(rname,[])
+                sd_d=price_shock_delta(rname,gal_prod[rname],gal_cons[rname],curr,base)
+                ratio=gal_prod[rname]/gal_cons[rname] if gal_cons[rname]>0 else 99.0
+                col=GREEN if mult>1.1 else (RED_C if mult<0.9 else (GOLD if mult>1.0 else DIM))
+                pressure_lbl="Rising ↑" if sd_d>0.01 else ("Falling ↓" if sd_d<-0.01 else "Stable ─")
+                mevs=[e for e in state.get("events_log",[]) if e.get("type")=="Market" and e.get("resource")==rname]
+                last_label=mevs[-1].get("label","") if mevs else "No data"
+                delta_approx=(curr-hist[-2])/hist[-2] if len(hist)>=2 and hist[-2] else 0.0
+                explain=_price_explain(rname,ratio,last_label,delta_approx,curr,base)
+                # full sparkline
+                spark=""
+                if hist:
+                    mn=min(hist); mxh=max(hist,default=mn+0.001)
+                    spark="".join("▁▂▃▄▅▆▇█"[min(7,int((v-mn)/(mxh-mn+0.001)*8))] for v in hist)
+                R+=[_hdr2(f"  {rname}"),
+                    _row("    Current Price",f"{curr:.4f} cr  (base {base:.2f}  x{mult:.3f})",vcol=col),
+                    _row("    S/D Ratio",f"{ratio:.3f}  ({gal_prod[rname]/1e6:.1f}M prod / {gal_cons[rname]/1e6:.1f}M cons)"),
+                    _row("    Pressure",pressure_lbl,vcol=GREEN if sd_d>0.01 else (RED_C if sd_d<-0.01 else DIM)),
+                    _row("    Last Shock",last_label,vcol=GOLD),
+                    _row("    Analysis",explain,vcol=CYAN)]
+                if hist:
+                    R+=[_row("    Full History",spark,vcol=TEAL),
+                        _row("    Range",f"lo:{min(hist):.4f}  hi:{max(hist):.4f}  now:{curr:.4f}  base:{base:.2f}",vcol=DIM)]
+                # last 5 market events for this resource
+                recent_evs=mevs[-5:] if mevs else []
+                if recent_evs:
+                    R.append(_row("    Recent Events","",vcol=DIM))
+                    for e in reversed(recent_evs):
+                        ecol=tuple(e["col_rgb"]) if e.get("col_rgb") else DIM
+                        R.append(_row(f"      T{e.get('turn','?')} Q{e.get('quarter','?')}",
+                                      f"{e.get('label','?'):<18} {e.get('description','')}",vcol=ecol))
+                R.append(_sep())
+
+    # ── CORP ── (rendered by corporateAlpha0671.build_corp_rows) ──────────────────
+    elif tab=="CORP":
+        R += build_corp_rows(nation,state,ipeu)
+
+    # ── EVENTS ────────────────────────────────────────────────────────────────
+    elif tab=="EVENTS":
+        elog=state.get("events_log",[]) or []; nname=nation["name"]
+        R+=[_hdr1("EVENTS LOG"),
+            _btn("Roll Events for This Nation","roll_events",{"nation":nname},(60,30,90)),
+            _btn("  + Add Custom Event","open_add_event",{"nation":nname},(20,55,30)),
+            _sep()]
+        indexed=[(i,e) for i,e in enumerate(elog) if e.get("nation")==nname or e.get("type") in ("Market","Piracy","Tithe")]
+        indexed.reverse()
+        if not indexed: R.append(_row("No events recorded","",vcol=DIM))
+        else:
+            cur_t=None
+            for orig_i,e in indexed[:100]:
+                t=e.get("turn","?")
+                if t!=cur_t: cur_t=t; R.append(_hdr2(f"Turn {t}  .  {e.get('year','?')} Q{e.get('quarter','?')}"))
+                approved=e.get("approved",False)
+                R+=[_ev_row(e),
+                    _btn(f"    {chr(10003)+' Approved' if approved else chr(9675)+' Approve'}","approve_event",{"ei":orig_i},
+                         (20,50,20) if approved else (50,40,10)),
+                    _btn(f"    ✏ Edit","edit_event",{"ei":orig_i},(16,32,52)),
+                    _btn(f"    ✕ Remove","remove_event",{"ei":orig_i},(60,18,18))]
+    return R
+
+_TR_DIST_OPTIONS=["near","kind of far","too far"]
+_TR_STATUS_OPTIONS=["active","suspended"]
+
+class ConfirmOverlay:
+    H=72
+    def __init__(self):
+        self.active=False; self.message=""; self.pending_action=None; self.pending_data={}
+        mid=SW//2; y_btn=SH-self.H-SBAR_H+20
+        self.btn_yes=Button((mid-96,y_btn,90,28),"YES (Enter)",accent=True)
+        self.btn_no=Button((mid+6,y_btn,90,28),"NO (Esc)")
+    def open(self,message,action,data):
+        self.active=True; self.message=message; self.pending_action=action; self.pending_data=data
+    def close(self): self.active=False; self.pending_action=None; self.pending_data={}
+    def draw(self,surf,dt):
+        if not self.active: return
+        y=SH-self.H-SBAR_H; r=pygame.Rect(0,y,SW,self.H)
+        draw_rect(surf,r,(35,10,10)); draw_rect(surf,r,RED_C,border=1)
+        draw_text(surf,f"CONFIRM: {self.message}",14,y+8,gf(12),BRIGHT)
+        self.btn_yes.draw(surf); self.btn_no.draw(surf)
+    def on_event(self,ev):
+        if not self.active: return None
+        if self.btn_yes.on_event(ev):
+            act,d=self.pending_action,self.pending_data; self.close(); return (act,d)
+        if self.btn_no.on_event(ev): self.close(); return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_RETURN:
+                act,d=self.pending_action,self.pending_data; self.close(); return (act,d)
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+        return None
+
+
+class TradeBuilderOverlay:
+    """Overlay for creating/editing trade routes in the MARKET tab panel area."""
+    def __init__(self):
+        self.active=False; self.mode="new"; self.route_id=None
+        self.fields=[]; self.transit_list=[]; self._nation_names=[]
+        self._transit_nation_idx=0; self._transit_tax_buf="0.05"
+        self.field_idx=0; self._blink=0.0
+    def _init_fields(self,route,nation_names):
+        self._nation_names=list(nation_names)
+        def cidx(lst,v,fb=0): return lst.index(v) if v in lst else fb
+        self.fields=[
+            {"key":"name",            "label":"Route Name",        "type":"text",   "val":route.get("name","New Route")},
+            {"key":"exporter",        "label":"Exporter",          "type":"choice", "val":cidx(nation_names,route.get("exporter",""),0),"opts":list(nation_names)},
+            {"key":"importer",        "label":"Importer",          "type":"choice", "val":cidx(nation_names,route.get("importer",""),0),"opts":list(nation_names)},
+            {"key":"resource",        "label":"Resource",          "type":"choice", "val":cidx(_RESOURCES,route.get("resource","Food"),0),"opts":list(_RESOURCES)},
+            {"key":"credits_per_turn","label":"Credits / Turn",    "type":"float",  "val":str(route.get("credits_per_turn",0.0))},
+            {"key":"pirate_distance", "label":"Pirate Distance",   "type":"choice", "val":cidx(_TR_DIST_OPTIONS,route.get("pirate_distance","near"),0),"opts":_TR_DIST_OPTIONS},
+            {"key":"pirate_escort",   "label":"Escort Ships",      "type":"int",    "val":str(route.get("pirate_escort",0))},
+            {"key":"route_modifier",  "label":"Route Modifier %",  "type":"float",  "val":str(round(route.get("route_modifier",0.0)*100,2))},
+            {"key":"status",          "label":"Status",            "type":"choice", "val":cidx(_TR_STATUS_OPTIONS,route.get("status","active"),0),"opts":_TR_STATUS_OPTIONS},
+        ]
+        self.transit_list=list(route.get("transit_nations",[]))
+        self._transit_nation_idx=0; self._transit_tax_buf="5.0"; self.field_idx=0
+    def open_new(self,nation_names): self.active=True; self.mode="new"; self.route_id=None; self._init_fields({},nation_names)
+    def open_edit(self,route,nation_names): self.active=True; self.mode="edit"; self.route_id=route.get("id"); self._init_fields(route,nation_names)
+    def close(self): self.active=False
+    def get_route_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="float":
+                try: v=float(f["val"])
+                except: v=0.0
+                d[f["key"]]=(v/100.0 if f["key"]=="route_modifier" else v)
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            else: d[f["key"]]=f["val"]
+        d["transit_nations"]=[dict(t) for t in self.transit_list]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,10,20))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),EDITBDR,border=2)
+        f11=gf(11); f10=gf(10); f13=gf(13)
+        lbl="NEW TRADE ROUTE" if self.mode=="new" else f"EDIT ROUTE  [{self.route_id}]"
+        draw_text(surf,lbl,rx+12,ry+7,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=edit text  Enter=save  Esc=cancel",rx+12,ry+24,f10,DIM)
+        draw_text(surf,"T=add transit  R=remove last transit  [/]=cycle transit nation",rx+12,ry+36,f10,DIM)
+        y=ry+52
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            row_r=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,row_r,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,row_r,EDITBDR,border=1,radius=2)
+            lc=BRIGHT if sel else DIM
+            draw_text(surf,f["label"],rx+14,y+4,f11,lc)
+            if f["type"]=="choice":
+                vc=CYAN if sel else TEXT
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+230,y+4,f11,vc)
+            else:
+                cursor="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cursor,rx+230,y+4,f11,EDITBDR if sel else TEXT)
+            y+=24
+        # transit section
+        y+=6; draw_text(surf,"TRANSIT NATIONS:",rx+14,y,f11,GOLD); y+=18
+        if not self.transit_list: draw_text(surf,"  (none)",rx+14,y,f10,DIM); y+=16
+        for t in self.transit_list:
+            draw_text(surf,f"  {t.get('nation','?')}  tax:{t.get('tax_rate',0)*100:.1f}%  [{t.get('status','active')}]",rx+14,y,f10,TEAL); y+=16
+        y+=4
+        if self._nation_names:
+            tn=self._nation_names[self._transit_nation_idx%len(self._nation_names)]
+            draw_text(surf,f"  [T] Add: {tn}  tax:{self._transit_tax_buf}%   [/] to cycle nation",rx+14,y,f10,(80,130,80))
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1); return None
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1); return None
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("text","float","int"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+            # Transit controls (only when not editing a text field)
+            if ev.key==pygame.K_t and f["type"]!="text":
+                if self._nation_names:
+                    tn=self._nation_names[self._transit_nation_idx%len(self._nation_names)]
+                    try: tr=float(self._transit_tax_buf)/100.0
+                    except: tr=0.05
+                    self.transit_list.append({"nation":tn,"tax_rate":round(tr,4),"status":"active"})
+            elif ev.key==pygame.K_r and f["type"]!="text":
+                if self.transit_list: self.transit_list.pop()
+            elif ev.key==pygame.K_LEFTBRACKET:
+                self._transit_nation_idx=(self._transit_nation_idx-1)%max(1,len(self._nation_names))
+            elif ev.key==pygame.K_RIGHTBRACKET:
+                self._transit_nation_idx=(self._transit_nation_idx+1)%max(1,len(self._nation_names))
+        return None
+
+
+_GRAPH_VIEWS=["PRICES","NATIONS IPEU","GALACTIC FLOWS"]
+_GRAPH_RES_COLORS=[GREEN,CYAN,GOLD,ORANGE,PURPLE]
+
+class GraphOverlay:
+    """Full-panel graph overlay with three views."""
+    def __init__(self): self.active=False; self.view_idx=0
+    def open(self): self.active=True
+    def close(self): self.active=False
+    def _line_chart(self,surf,series,rx,ry,rw,rh,title,colors):
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(7,13,23))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=1)
+        f10=gf(10); f11=gf(11)
+        draw_text(surf,title,rx+6,ry+4,f11,BRIGHT)
+        all_v=[v for _,vs in series for v in vs]
+        if not all_v: draw_text(surf,"No data yet — advance turns.",rx+20,ry+40,f10,DIM); return
+        mn=min(all_v); mx2=max(all_v)
+        if mx2==mn: mx2=mn+1
+        pl=62; pr=10; pt=22; pb=22
+        cw=rw-pl-pr; ch=rh-pt-pb; cx0=rx+pl; cy0=ry+pt+ch
+        for i in range(5):
+            yv=mn+(mx2-mn)*i/4; yp=cy0-int(ch*i/4)
+            pygame.draw.line(surf,BORDER,(cx0,yp),(cx0+cw,yp),1)
+            draw_text(surf,f"{yv:.2f}",rx+2,yp-6,f10,DIM)
+        n_pts=max((len(vs) for _,vs in series),default=1)
+        for (lbl,vs),col in zip(series,colors):
+            if len(vs)<2: continue
+            pts=[]
+            for j,v in enumerate(vs):
+                xp=cx0+int(cw*j/max(1,n_pts-1)); yp=cy0-int(ch*(v-mn)/(mx2-mn))
+                pts.append((xp,yp))
+            for j in range(len(pts)-1):
+                pygame.draw.line(surf,col,pts[j],pts[j+1],2)
+            if pts: draw_text(surf,lbl[:7],pts[-1][0]+2,pts[-1][1]-6,f10,col)
+    def _bar_chart(self,surf,data,rx,ry,rw,rh,title,col=CYAN):
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(7,13,23))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=1)
+        f10=gf(10); f11=gf(11)
+        draw_text(surf,title,rx+6,ry+4,f11,BRIGHT)
+        if not data: return
+        mx2=max(v for _,v in data) or 1
+        bh2=min(20,max(10,(rh-30)//max(1,len(data))-3))
+        y=ry+24
+        for lbl,val in data:
+            bw2=int((rw-160)*val/mx2)
+            draw_rect(surf,pygame.Rect(rx+140,y,max(2,bw2),bh2),col,radius=2)
+            draw_text(surf,lbl[:20],rx+4,y+2,f10,DIM)
+            draw_text(surf,fmt_cr(val),rx+144+bw2+2,y+2,f10,TEXT)
+            y+=bh2+4
+    def draw(self,surf,state):
+        if not self.active: return
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,9,17))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"GRAPHS",rx+12,ry+6,f13,BRIGHT)
+        draw_text(surf,"Left/Right = switch view   Esc = close",rx+12,ry+22,f10,DIM)
+        view=_GRAPH_VIEWS[self.view_idx]
+        for i,v in enumerate(_GRAPH_VIEWS):
+            sel=(i==self.view_idx)
+            tx=rx+rw-260+i*88
+            tr=pygame.Rect(tx,ry+4,86,22)
+            draw_rect(surf,tr,SEL if sel else (12,22,36),radius=3)
+            if sel: draw_rect(surf,tr,EDITBDR,border=1,radius=3)
+            draw_text(surf,v,tr.x+4,tr.y+4,f10,BRIGHT if sel else DIM)
+        market=state.get("market",{}); ph=market.get("price_history",{})
+        if view=="PRICES":
+            series=[(rn[:6],[v for v in ph.get(rn,[])[-24:]]) for rn in _RESOURCES if ph.get(rn)]
+            self._line_chart(surf,series,rx+6,ry+38,rw-12,rh-44,"Resource Price History (last 24 turns)",_GRAPH_RES_COLORS)
+        elif view=="NATIONS IPEU":
+            nations=state.get("nations",[])
+            data=sorted([(n["name"],n.get("base_ipeu",0)) for n in nations],key=lambda x:-x[1])
+            self._bar_chart(surf,data,rx+6,ry+38,rw-12,rh-44,"Nation IPEU Comparison",CYAN)
+        elif view=="GALACTIC FLOWS":
+            gal_stock,gal_prod,gal_cons=compute_galactic_stockpiles(state)
+            draw_rect(surf,pygame.Rect(rx+6,ry+38,rw-12,rh-44),(7,13,23))
+            draw_rect(surf,pygame.Rect(rx+6,ry+38,rw-12,rh-44),BORDER2,border=1)
+            draw_text(surf,"Galactic Resource Net Flow / Turn",rx+14,ry+44,f11,BRIGHT)
+            y=ry+64; mx2=max((abs(gal_prod[r]-gal_cons[r]) for r in _RESOURCES),default=1) or 1
+            bw_max=rw-200
+            for rn,col in zip(_RESOURCES,_GRAPH_RES_COLORS):
+                net=gal_prod[rn]-gal_cons[rn]; bw2=int(bw_max*abs(net)/mx2)
+                draw_rect(surf,pygame.Rect(rx+130,y,max(2,bw2),18),GREEN if net>=0 else RED_C,radius=2)
+                draw_text(surf,rn[:16],rx+14,y+2,f10,DIM)
+                sign="+" if net>=0 else ""
+                draw_text(surf,f"{sign}{fmt_res(net)}/t",rx+134+bw2+4,y+2,f10,GREEN if net>=0 else RED_C)
+                y+=26
+            y+=8; draw_text(surf,"Recent Price Shocks:",rx+14,y,f11,GOLD); y+=18
+            elog=state.get("events_log",[]) or []
+            shocks=[e for e in reversed(elog) if e.get("type")=="Market" and
+                    any(k in e.get("label","") for k in ("CRASH","BOOM","Surge","Drop"))][:6]
+            if not shocks: draw_text(surf,"  None on record",rx+14,y,f10,DIM)
+            for e in shocks:
+                draw_text(surf,f"  T{e.get('turn','?')} {e.get('label','?')}: {e.get('description','')[:65]}",rx+14,y,f10,tuple(e.get("col_rgb",[84,114,136]))); y+=14
+    def on_event(self,ev):
+        if not self.active: return
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close()
+            elif ev.key==pygame.K_LEFT: self.view_idx=(self.view_idx-1)%len(_GRAPH_VIEWS)
+            elif ev.key==pygame.K_RIGHT: self.view_idx=(self.view_idx+1)%len(_GRAPH_VIEWS)
+
+
+class UnitBuilderOverlay:
+    """Overlay to create or edit a unit in active_forces_detail."""
+    def __init__(self):
+        self.active=False; self.mode="new"; self.unit_idx=-1
+        self.fields=[]; self._blink=0.0; self.field_idx=0; self._nation_names=[]
+    def _make_fields(self,u,nation_names):
+        self._nation_names=list(nation_names)
+        raw_cat=_CAT_NORM.get(u.get("category","Spacefleet"),"Spacefleet")
+        cat_idx=_UNIT_CATS.index(raw_cat) if raw_cat in _UNIT_CATS else 0
+        ut_list=_UNIT_TYPES_BY_CAT[_UNIT_CATS[cat_idx]]
+        ut_idx=ut_list.index(u.get("unit",ut_list[0])) if u.get("unit") in ut_list else 0
+        vet_idx=_UNIT_VETERANCY.index(u.get("veterancy","Regular")) if u.get("veterancy") in _UNIT_VETERANCY else 1
+        self.fields=[
+            {"key":"category",    "label":"Category",       "type":"choice","val":cat_idx,  "opts":_UNIT_CATS},
+            {"key":"unit",        "label":"Unit Type",       "type":"choice","val":ut_idx,   "opts":ut_list},
+            {"key":"count",       "label":"Count",           "type":"int",   "val":str(u.get("count",1))},
+            {"key":"veterancy",   "label":"Veterancy",       "type":"choice","val":vet_idx,  "opts":_UNIT_VETERANCY},
+            {"key":"custom_name", "label":"Custom Name",     "type":"text",  "val":u.get("custom_name","")},
+            {"key":"training_turns","label":"Training Turns","type":"int",   "val":str(u.get("training_turns",0))},
+            {"key":"maintenance", "label":"Maintenance/t",  "type":"float", "val":str(u.get("maintenance",0.0))},
+        ]
+    def open_new(self,nation_names,unit_groups):
+        self.active=True; self.mode="new"; self.unit_idx=-1; self.field_idx=0
+        self._make_fields({},nation_names)
+    def open_edit(self,u,idx,nation_names,unit_groups):
+        self.active=True; self.mode="edit"; self.unit_idx=idx; self.field_idx=0
+        self._make_fields(u,nation_names)
+    def close(self): self.active=False
+    def _sync_cat(self):
+        cat=_UNIT_CATS[self.fields[0]["val"]]
+        ut_list=_UNIT_TYPES_BY_CAT[cat]
+        self.fields[1]["opts"]=ut_list; self.fields[1]["val"]=min(self.fields[1]["val"],len(ut_list)-1)
+    def get_unit_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            elif f["type"]=="float":
+                try: d[f["key"]]=float(f["val"])
+                except: d[f["key"]]=0.0
+            else: d[f["key"]]=f["val"]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,10,22))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),BORDER2,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        lbl="NEW UNIT" if self.mode=="new" else f"EDIT UNIT  [#{self.unit_idx}]"
+        draw_text(surf,lbl,rx+12,ry+7,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle choice  Type=edit text  Enter=save  Esc=cancel",rx+12,ry+24,f10,DIM)
+        y=ry+42
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,rr,EDITBDR,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+230,y+4,f11,CYAN if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+230,y+4,f11,EDITBDR if sel else TEXT)
+            y+=24
+        # consumption preview
+        ud=self.get_unit_data(); cat=ud.get("category",""); cnt=ud.get("count",1)
+        uname=ud.get("unit","")
+        if cat in ("Ground Forces",):
+            food_p=cnt*GROUND_DIVISION_SIZE*GROUND_FOOD_PER_SOLDIER
+            alloy_p=cnt*GROUND_ALLOY_PER_DIVISION
+        else:
+            food_p=UNIT_CREW.get(uname,0)*cnt; alloy_p=UNIT_ALLOY_CON.get(uname,0)*cnt
+        draw_text(surf,f"Consumption preview:  Food {fmt_res(food_p)}/t   Alloys {fmt_res(alloy_p)}/t",rx+14,y+6,f10,TEAL)
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1); return None
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1); return None
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+                if f["key"]=="category": self._sync_cat()
+            elif f["type"] in ("text","int","float"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+
+class EcoProjectOverlay:
+    """Simple overlay to define a new economic project."""
+    def __init__(self):
+        self.active=False; self._blink=0.0; self.field_idx=0
+        self.fields=[]
+    _PROJ_TYPES=["Investment","Subsidy","Infrastructure","R&D Grant","Market Intervention"]
+    _EFFECT_FIELDS=["ipeu_growth","pop_growth","bureaucratic_efficiency","subsidy_rate","investment_rate","none"]
+    def open(self):
+        self.active=True; self.field_idx=0
+        self.fields=[
+            {"key":"name",          "label":"Project Name",  "type":"text",  "val":"New Project"},
+            {"key":"type",          "label":"Project Type",  "type":"choice","val":0,"opts":self._PROJ_TYPES},
+            {"key":"cost_per_turn", "label":"Cost / Turn",   "type":"float", "val":"0"},
+            {"key":"total_turns",   "label":"Duration (turns)","type":"int", "val":"4"},
+            {"key":"effect_field",  "label":"Effect Field",  "type":"choice","val":0,"opts":self._EFFECT_FIELDS},
+            {"key":"effect_value",  "label":"Effect Value",  "type":"float", "val":"0.01"},
+        ]
+    def close(self): self.active=False
+    def get_data(self):
+        d={"status":"active"}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=1
+            elif f["type"]=="float":
+                try: d[f["key"]]=float(f["val"])
+                except: d[f["key"]]=0.0
+            else: d[f["key"]]=f["val"]
+        d["turns_remaining"]=d.get("total_turns",4)
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X+60; ry=MAIN_Y+40; rw=SW-MAIN_X-120; rh=260
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,12,22))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),GOLD,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"NEW ECONOMIC PROJECT",rx+10,ry+6,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=edit  Enter=save  Esc=cancel",rx+10,ry+22,f10,DIM)
+        y=ry+40
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else ((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,rr,GOLD,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+220,y+4,f11,GOLD if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+220,y+4,f11,GOLD if sel else TEXT)
+            y+=24
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1)
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1)
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("text","int","float"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+
+class CasualtiesOverlay:
+    """Log military deaths for a species."""
+    def __init__(self):
+        self.active=False; self._blink=0.0; self.field_idx=0; self.fields=[]
+    _LIFE_STAGES=["Teen","Young Adult","Adult","Middle Aged","Senior"]
+    def open(self,species_names):
+        self.active=True; self.field_idx=0
+        opts=list(species_names) if species_names else ["Unknown"]
+        self.fields=[
+            {"key":"species",    "label":"Species",    "type":"choice","val":0,"opts":opts},
+            {"key":"count",      "label":"Deaths",     "type":"int",   "val":"0"},
+            {"key":"life_stage", "label":"Life Stage", "type":"choice","val":2,"opts":self._LIFE_STAGES},
+        ]
+    def close(self): self.active=False
+    def get_data(self):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            elif f["type"]=="int":
+                try: d[f["key"]]=int(f["val"])
+                except: d[f["key"]]=0
+            else: d[f["key"]]=f["val"]
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X+80; ry=MAIN_Y+80; rw=SW-MAIN_X-160; rh=140
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(18,5,5))
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),RED_C,border=2)
+        f10=gf(10); f11=gf(11); f13=gf(13)
+        draw_text(surf,"LOG CASUALTIES",rx+10,ry+6,f13,BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=count  Enter=log  Esc=cancel",rx+10,ry+22,f10,DIM)
+        y=ry+42
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx)
+            rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else BG,radius=2)
+            if sel: draw_rect(surf,rr,RED_C,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,f11,BRIGHT if sel else DIM)
+            if f["type"]=="choice":
+                draw_text(surf,f"\u25c4 {f['opts'][f['val']]} \u25ba",rx+180,y+4,f11,RED_C if sel else TEXT)
+            else:
+                cur="\u258e" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+180,y+4,f11,RED_C if sel else TEXT)
+            y+=24
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1)
+            if ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1)
+            f=self.fields[self.field_idx]
+            if f["type"]=="choice":
+                if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+            elif f["type"] in ("int","text"):
+                if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+
+# ── panels ────────────────────────────────────────────────────────────────────
+
+# ContractBuilderOverlay...CorpGraphOverlay moved to corporateAlpha0671.py
+
+class EventBuilderOverlay:
+    """Add or edit a global events_log entry."""
+    _TYPE_OPTS=["Market","Civic","Piracy","Resource","Planetside","Colony","Corp","Custom"]
+    def __init__(self):
+        self.active=False; self.mode="new"; self.ev_idx=-1
+        self.fields=[]; self.field_idx=0; self._blink=0.0
+    def _init_fields(self,ev,nation_name=""):
+        tid=self._TYPE_OPTS.index(ev.get("type","Custom")) if ev.get("type","Custom") in self._TYPE_OPTS else 7
+        self.fields=[
+            {"key":"type",       "label":"Event Type", "type":"choice","val":tid,"opts":self._TYPE_OPTS},
+            {"key":"nation",     "label":"Nation",     "type":"text",  "val":ev.get("nation",nation_name)},
+            {"key":"label",      "label":"Label",      "type":"text",  "val":ev.get("label","")},
+            {"key":"description","label":"Description","type":"text",  "val":ev.get("description","")},
+        ]
+        self.field_idx=0
+    def open_new(self,nation_name=""): self.active=True; self.mode="new"; self.ev_idx=-1; self._init_fields({},nation_name)
+    def open_edit(self,ev,idx): self.active=True; self.mode="edit"; self.ev_idx=idx; self._init_fields(ev)
+    def close(self): self.active=False
+    def get_data(self,state):
+        d={}
+        for f in self.fields:
+            if f["type"]=="choice": d[f["key"]]=f["opts"][f["val"]]
+            else: d[f["key"]]=f["val"]
+        d["turn"]=state.get("turn",1); d["year"]=state.get("year",2200); d["quarter"]=state.get("quarter",1)
+        d["roll"]="GM"; d["col_rgb"]=list(CYAN)
+        return d
+    def draw(self,surf,dt):
+        if not self.active: return
+        self._blink=(self._blink+dt)%1.0
+        rx=MAIN_X; ry=MAIN_Y; rw=SW-MAIN_X; rh=SH-MAIN_Y-SBAR_H
+        draw_rect(surf,pygame.Rect(rx,ry,rw,rh),(5,10,20)); draw_rect(surf,pygame.Rect(rx,ry,rw,rh),CYAN,border=2)
+        lbl="NEW EVENT" if self.mode=="new" else f"EDIT EVENT [{self.ev_idx}]"
+        draw_text(surf,lbl,rx+12,ry+7,gf(13),BRIGHT)
+        draw_text(surf,"Up/Down=field  Left/Right=cycle  Type=edit  Enter=save  Esc=cancel",rx+12,ry+24,gf(10),DIM)
+        y=ry+48
+        for i,f in enumerate(self.fields):
+            sel=(i==self.field_idx); rr=pygame.Rect(rx+4,y,rw-8,22)
+            draw_rect(surf,rr,SEL if sel else((10,18,28) if i%2==0 else BG),radius=2)
+            if sel: draw_rect(surf,rr,CYAN,border=1,radius=2)
+            draw_text(surf,f["label"],rx+14,y+4,gf(11),BRIGHT if sel else DIM)
+            if f["type"]=="choice": draw_text(surf,f"◄ {f['opts'][f['val']]} ►",rx+220,y+4,gf(11),CYAN if sel else TEXT)
+            else:
+                cur="▎" if (sel and self._blink<0.5) else ""
+                draw_text(surf,f["val"]+cur,rx+220,y+4,gf(11),EDITBDR if sel else TEXT)
+            y+=24
+    def on_event(self,ev):
+        if not self.active: return None
+        if ev.type==pygame.KEYDOWN:
+            if ev.key==pygame.K_ESCAPE: self.close(); return None
+            if ev.key==pygame.K_RETURN: return "save"
+            if ev.key==pygame.K_UP: self.field_idx=max(0,self.field_idx-1)
+            elif ev.key==pygame.K_DOWN: self.field_idx=min(len(self.fields)-1,self.field_idx+1)
+            else:
+                f=self.fields[self.field_idx]
+                if f["type"]=="choice":
+                    if ev.key==pygame.K_LEFT: f["val"]=(f["val"]-1)%len(f["opts"])
+                    elif ev.key==pygame.K_RIGHT: f["val"]=(f["val"]+1)%len(f["opts"])
+                elif f["type"]=="text":
+                    if ev.key==pygame.K_BACKSPACE: f["val"]=f["val"][:-1]
+                    elif ev.unicode and ev.unicode.isprintable(): f["val"]+=ev.unicode
+        return None
+
+class LeftPanel:
+    PAD=8
+    def __init__(self):
+        bw=LWIDTH-self.PAD*2; BTN_Y=SH-SBAR_H-118
+        self.nations=[]; self.selected=0; self._hover=-1; self.adv_n=1
+        list_h=BTN_Y-TBAR_H-46
+        self.scroll=Scrollbar(LWIDTH-Scrollbar.W-2,TBAR_H+4,list_h)
+        hw=(bw-4)//2
+        self.btn_minus=Button((self.PAD,BTN_Y,hw,24),"- ",small=True)
+        self.btn_plus=Button((self.PAD+hw+4,BTN_Y,hw,24)," +",small=True)
+        self.btn_adv=Button((self.PAD,BTN_Y+28,bw,26),"[ ADVANCE ]",accent=True)
+        self.btn_save=Button((self.PAD,BTN_Y+58,bw,24),"[ SAVE  S ]",color=(22,54,38))
+        self.btn_disc=Button((self.PAD,BTN_Y+86,bw,24),"[ DISCORD  D ]")
+    def set_nations(self,names,sel=0,state=None):
+        self.nations=names; self.selected=sel; self._state=state or {}
+        BTN_Y=SH-SBAR_H-118; list_h=BTN_Y-TBAR_H-46
+        self.scroll.set_content(len(names)*22,list_h)
+    def draw(self,surf,turn,year,quarter):
+        draw_rect(surf,pygame.Rect(0,0,LWIDTH,SH),PANEL); draw_rect(surf,pygame.Rect(LWIDTH-1,0,1,SH),BORDER)
+        f12=gf(12); f10=gf(10)
+        draw_text(surf,f"T{turn} . {year} Q{quarter}",self.PAD,TBAR_H+4,f12,CYAN)
+        draw_text(surf,f"{len(self.nations)} nations  ~=console",self.PAD,TBAR_H+20,f10,DIM)
+        BTN_Y=SH-SBAR_H-118; list_h=BTN_Y-TBAR_H-46
+        clip=pygame.Rect(0,TBAR_H+40,LWIDTH-Scrollbar.W-2,list_h)
+        surf.set_clip(clip); y0=TBAR_H+40-int(self.scroll.scroll); mx,my=pygame.mouse.get_pos(); self._hover=-1
+        nmap={n["name"]:n for n in self._state.get("nations",[])}
+        for i,name in enumerate(self.nations):
+            yr=pygame.Rect(self.PAD,y0+i*22,LWIDTH-Scrollbar.W-self.PAD*2,20)
+            if yr.collidepoint(mx,my): self._hover=i
+            if i==self.selected: draw_rect(surf,yr,SEL,radius=2); draw_rect(surf,yr,BORDER2,border=1,radius=2)
+            elif self._hover==i: draw_rect(surf,yr,HOVER,radius=2)
+            is_npc=nmap.get(name,{}).get("is_npc",False)
+            tag_col=DIM if is_npc else ACCENT
+            draw_text(surf,f"[{nation_tag(name)}]",yr.x+2,yr.y+3,f10,tag_col)
+            name_col=(DIM if is_npc else BRIGHT) if i==self.selected else (DIM if is_npc else TEXT)
+            draw_text(surf,name[:22],yr.x+36,yr.y+3,f10,name_col)
+            if is_npc: draw_text(surf,"NPC",yr.x+LWIDTH-Scrollbar.W-self.PAD*2-26,yr.y+3,f10,(50,72,92))
+        surf.set_clip(None); self.scroll.draw(surf)
+        draw_text(surf,f"Advance {self.adv_n} turn{'s' if self.adv_n!=1 else ''}",self.PAD,BTN_Y-16,f10,DIM)
+        self.btn_minus.draw(surf); self.btn_plus.draw(surf)
+        self.btn_adv.draw(surf); self.btn_save.draw(surf); self.btn_disc.draw(surf)
+    def on_event(self,ev):
+        mx,my=pygame.mouse.get_pos(); BTN_Y=SH-SBAR_H-118; list_h=BTN_Y-TBAR_H-46
+        in_list=mx<LWIDTH and my>TBAR_H+40 and my<TBAR_H+40+list_h
+        self.scroll.on_event(ev,in_list)
+        if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
+            for i,name in enumerate(self.nations):
+                yr=pygame.Rect(self.PAD,TBAR_H+40-int(self.scroll.scroll)+i*22,LWIDTH-Scrollbar.W-self.PAD*2,20)
+                if yr.collidepoint(ev.pos) and 0<ev.pos[0]<LWIDTH: return i
+        return None
+
+class MainPanel:
+    def __init__(self):
+        self.rows=[]; self.scroll=Scrollbar(SW-Scrollbar.W-2,MAIN_Y,MAIN_H)
+        self.edit=EditOverlay(); self.collapsed_keys=set()
+    def set_rows(self,rows):
+        self.rows=rows; total=sum(r["h"] for r in rows)
+        self.scroll.set_content(total,MAIN_H-(self.edit.H if self.edit.active else 0)); self.scroll.scroll=0
+    def _row_rects(self):
+        rects=[]; y=MAIN_Y-int(self.scroll.scroll)
+        for r in self.rows: rects.append(pygame.Rect(MAIN_X,y,MAIN_W-Scrollbar.W,r["h"])); y+=r["h"]
+        return rects
+    def draw(self,surf):
+        clip=pygame.Rect(MAIN_X,MAIN_Y,MAIN_W-Scrollbar.W,MAIN_H-(self.edit.H if self.edit.active else 0))
+        surf.set_clip(clip); f12=gf(12); f11=gf(11); f10=gf(10); f13=gf(13)
+        mx,my=pygame.mouse.get_pos(); rects=self._row_rects()
+        for i,(row,rect) in enumerate(zip(self.rows,rects)):
+            if rect.bottom<MAIN_Y or rect.top>MAIN_Y+MAIN_H: continue
+            rt=row["type"]
+            if rt=="hdr1":
+                draw_rect(surf,rect,(16,28,44)); draw_rect(surf,pygame.Rect(MAIN_X,rect.y,3,rect.h),ACCENT)
+                draw_text(surf,row["txt"],rect.x+10,rect.y+8,f13,BRIGHT,clip)
+            elif rt=="hdr2":
+                draw_rect(surf,rect,(13,22,36)); draw_rect(surf,pygame.Rect(rect.x,rect.bottom-1,rect.w,1),BORDER)
+                draw_text(surf,row["txt"],rect.x+10,rect.y+6,f12,CYAN,clip)
+            elif rt=="collapse":
+                is_hov=rect.collidepoint(mx,my)
+                draw_rect(surf,rect,(18,32,48) if is_hov else (14,24,38))
+                draw_rect(surf,pygame.Rect(rect.x,rect.bottom-1,rect.w,1),BORDER2)
+                draw_rect(surf,pygame.Rect(rect.x,rect.y,3,rect.h),row.get("col",TEAL))
+                draw_text(surf,row["label"],rect.x+10,rect.y+7,f12,row.get("col",TEAL),clip)
+            elif rt=="species_hdr":
+                draw_rect(surf,rect,(14,24,38))
+                draw_text(surf,f"{row['name']}  ({row['status'].title()})",rect.x+10,rect.y+6,f12,GOLD,clip)
+            elif rt=="row":
+                is_edit=bool(row.get("meta"))
+                bg=HOVER if (is_edit and rect.collidepoint(mx,my)) else ((10,18,28) if i%2==0 else BG)
+                draw_rect(surf,rect,bg); draw_text(surf,row["label"],rect.x+8,rect.y+3,f11,DIM,clip)
+                vc=EDITBDR if (is_edit and rect.collidepoint(mx,my)) else row.get("vcol",TEXT)
+                draw_text(surf,row["val"],rect.x+190,rect.y+3,f11,vc,clip)
+            elif rt=="bar":
+                draw_rect(surf,rect,(10,18,28) if i%2==0 else BG)
+                draw_text(surf,row["label"],rect.x+8,rect.y+3,f11,DIM,clip)
+                bx=rect.x+168; by=rect.y+5; bw2=100; bh=10
+                draw_rect(surf,pygame.Rect(bx,by,bw2,bh),(18,32,50),radius=2)
+                fw=int(row["pct"]*bw2)
+                if fw>0: draw_rect(surf,pygame.Rect(bx,by,fw,bh),row.get("vcol",CYAN),radius=2)
+                draw_text(surf,row["txt"],bx+bw2+6,rect.y+3,f11,TEXT,clip)
+            elif rt=="btn":
+                is_hov=rect.collidepoint(mx,my); bc=row.get("col") or (28,54,82)
+                bg=tuple(min(255,c+25) for c in bc) if is_hov else bc
+                draw_rect(surf,rect,bg,radius=3); draw_rect(surf,rect,BORDER2,border=1,radius=3)
+                s=f11.render(row["label"],True,BRIGHT); surf.blit(s,s.get_rect(midleft=(rect.x+8,rect.centery)))
+            elif rt=="event_row":
+                draw_rect(surf,rect,(10,18,28) if i%2==0 else BG)
+                draw_text(surf,row["txt"],rect.x+8,rect.y+3,f10,tuple(row["col"]),clip)
+        surf.set_clip(None); self.scroll.draw(surf)
+    def on_click(self,ev):
+        if ev.type!=pygame.MOUSEBUTTONDOWN or ev.button!=1: return None
+        if not (MAIN_X<=ev.pos[0]<SW-Scrollbar.W and MAIN_Y<=ev.pos[1]<MAIN_Y+MAIN_H): return None
+        for row,rect in zip(self.rows,self._row_rects()):
+            if rect.collidepoint(ev.pos):
+                if row["type"]=="btn": return row
+                if row["type"]=="collapse": return row
+                if row.get("meta"): return row
+        return None
+    def on_event(self,ev):
+        mx,my=pygame.mouse.get_pos(); self.scroll.on_event(ev,MAIN_X<=mx<SW and MAIN_Y<=my<MAIN_Y+MAIN_H)
+
+_status_msg=""; _status_col=DIM; _status_time=0.0
+def set_status(msg,col=DIM):
+    global _status_msg,_status_col,_status_time; _status_msg=msg; _status_col=col; _status_time=time.time()
+
+def draw_top_bar(surf,name,turn,year,quarter,dirty):
+    draw_rect(surf,pygame.Rect(LWIDTH,0,SW-LWIDTH,TBAR_H),(10,16,26))
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H-1,SW-LWIDTH,1),BORDER)
+    draw_text(surf,name,LWIDTH+12,10,gf(13,False),BRIGHT)
+    if dirty: draw_text(surf,"UNSAVED",SW-80,12,gf(11),GOLD)
+
+def draw_tab_bar(surf,tab_idx,tabs):
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H,SW-LWIDTH,TABBAR_H),(10,16,26))
+    draw_rect(surf,pygame.Rect(LWIDTH,TBAR_H+TABBAR_H-1,SW-LWIDTH,1),BORDER)
+    f10=gf(10); w=(SW-LWIDTH)//len(tabs)
+    for i,tab in enumerate(tabs):
+        tx=LWIDTH+i*w; tr=pygame.Rect(tx,TBAR_H,w,TABBAR_H)
+        if i==tab_idx:
+            draw_rect(surf,tr,(18,36,58)); draw_rect(surf,pygame.Rect(tx,TBAR_H+TABBAR_H-2,w,2),CYAN)
+            s=f10.render(tab,True,BRIGHT)
+        else:
+            if tr.collidepoint(pygame.mouse.get_pos()): draw_rect(surf,tr,HOVER)
+            s=f10.render(tab,True,DIM)
+        surf.blit(s,s.get_rect(center=tr.center))
+
+def draw_galactic_subtab_bar(surf,sub_idx):
+    """Mini subtab bar drawn at the top of the MAIN panel area when GALACTIC is active."""
+    bar_rect=pygame.Rect(MAIN_X,MAIN_Y,MAIN_W,GSUB_H)
+    draw_rect(surf,bar_rect,(10,18,30))
+    draw_rect(surf,pygame.Rect(MAIN_X,MAIN_Y+GSUB_H-1,MAIN_W,1),BORDER2)
+    f9=gf(9); w=120
+    for i,lbl in enumerate(GALACTIC_SUBS):
+        tx=MAIN_X+4+i*w; tr=pygame.Rect(tx,MAIN_Y+2,w-4,GSUB_H-4)
+        if i==sub_idx:
+            draw_rect(surf,tr,(22,48,72),radius=3)
+            draw_rect(surf,tr,TEAL,border=1,radius=3)
+            s=f9.render(lbl,True,BRIGHT)
+        else:
+            if tr.collidepoint(pygame.mouse.get_pos()): draw_rect(surf,tr,(16,32,52),radius=3)
+            s=f9.render(lbl,True,DIM)
+        surf.blit(s,s.get_rect(center=tr.center))
+
+def draw_status_bar(surf):
+    draw_rect(surf,pygame.Rect(0,SH-SBAR_H,SW,SBAR_H),(8,14,22))
+    draw_rect(surf,pygame.Rect(0,SH-SBAR_H,SW,1),BORDER)
+    age=time.time()-_status_time; col=_status_col if age<3.0 else DIM
+    draw_text(surf,_status_msg if age<5.0 else "Ready",10,SH-SBAR_H+4,gf(10),col)
+    draw_text(surf,"S=save  D=discord  Arrows=nation  Tab/1-7=tab  ~=GM console",SW-460,SH-SBAR_H+4,gf(10),DIM2)
+
+# ── main ──────────────────────────────────────────────────────────────────────
+def main(filepath=None):
+    if filepath is None:
+        filepath=sys.argv[1] if len(sys.argv)>1 else DEFAULT_STATE
+    sm=StateManager(filepath)
+    if not sm.load(): sys.exit(f"[FATAL] Cannot load: {filepath}")
+    pygame.init(); pygame.display.set_caption("Carmine NRP Engine - vAlpha0.6.71")
+    init_corp_module({"gf":gf,"draw_text":draw_text,"draw_rect":draw_rect,"fmt_cr":fmt_cr,"fmt_res":fmt_res,"_row":_row,"_btn":_btn,"_hdr1":_hdr1,"_hdr2":_hdr2,"_sep":_sep,"_bar":_bar,"TEXT":TEXT,"BG":BG,"SEL":SEL,"EDITBDR":EDITBDR,"BRIGHT":BRIGHT,"DIM":DIM,"CYAN":CYAN,"TEAL":TEAL,"GOLD":GOLD,"RED_C":RED_C,"GREEN":GREEN,"PURPLE":PURPLE,"SW":SW,"SH":SH,"MAIN_X":MAIN_X,"MAIN_Y":MAIN_Y,"SBAR_H":SBAR_H})
+    surf=pygame.display.set_mode((SW,SH)); clock=pygame.time.Clock()
+    left=LeftPanel(); main_=MainPanel(); gm_console=GMConsoleOverlay()
+    confirm_=ConfirmOverlay(); trade_builder_=TradeBuilderOverlay(); graph_overlay_=GraphOverlay()
+    unit_builder_=UnitBuilderOverlay(); eco_proj_=EcoProjectOverlay(); casualties_=CasualtiesOverlay()
+    contract_builder_=ContractBuilderOverlay(); location_builder_=LocationBuilderOverlay()
+    location_searcher_=LocationSearcherOverlay()
+    shareholder_builder_=ShareholderBuilderOverlay(); corp_event_builder_=CorpEventBuilderOverlay()
+    corp_graph_=CorpGraphOverlay(); event_builder_=EventBuilderOverlay()
+    names=sm.nation_names(); sel_idx=0; tab_idx=0; galactic_sub_idx=0
+
+    def cur_nation(): return sm.get_nation(names[sel_idx]) if names else None
+    def cur_tabs():
+        n=cur_nation(); return get_tabs(n) if n else TABS
+
+    def load_nation(idx):
+        nonlocal sel_idx; sel_idx=max(0,min(idx,len(names)-1)); left.selected=sel_idx
+        n=cur_nation()
+        if n:
+            tabs=get_tabs(n)
+            ti=min(tab_idx,len(tabs)-1)
+            main_.set_rows(build_rows(n,sm.state,tabs[ti],main_.collapsed_keys,galactic_sub_idx))
+
+    def do_discord():
+        n=cur_nation()
+        if n: path=_discord_export(n,sm.state); set_status(f"Discord -> {path}",CYAN)
+
+    left.set_nations(names,sel_idx,sm.state)
+    load_nation(0)
+    if getattr(sm,"_migration_warnings",[]):
+        set_status(f"MIGRATION: flat offices/stores zeroed for: {", ".join(sm._migration_warnings)} — add locations manually.",GOLD)
+    else:
+        set_status(f"Carmine v0.6.71  ~=GM console  loaded: {filepath}",CYAN)
+    running=True
+    while running:
+        dt=clock.tick(FPS)/1000.0
+        for ev in pygame.event.get():
+            if ev.type==pygame.QUIT: running=False
+
+            # GM console swallows all input when active
+            if gm_console.active:
+                gm_console.on_event(ev,sm,lambda: load_nation(sel_idx))
+                continue
+
+            # trade builder overlay swallows input when active
+            if trade_builder_.active:
+                tb_result=trade_builder_.on_event(ev)
+                if tb_result=="save":
+                    rd=trade_builder_.get_route_data()
+                    if trade_builder_.mode=="new":
+                        existing_ids=[r.get("id","") for r in sm.state.get("trade_routes",[])]
+                        new_id=f"TR{len(existing_ids)+1:04d}"
+                        while new_id in existing_ids: new_id=f"TR{random.randint(1000,9999)}"
+                        rd["id"]=new_id; rd.setdefault("pirate_incidents",0)
+                        rd.setdefault("total_pirated",0.0); rd.setdefault("_piracy_loss_this_turn",0.0)
+                        sm.state.setdefault("trade_routes",[]).append(rd)
+                        set_status(f"Trade route {new_id} created.",GREEN)
+                    else:
+                        routes2=sm.state.get("trade_routes",[])
+                        for ii,rr in enumerate(routes2):
+                            if rr.get("id")==trade_builder_.route_id:
+                                rd["id"]=trade_builder_.route_id
+                                rd["pirate_incidents"]=rr.get("pirate_incidents",0)
+                                rd["total_pirated"]=rr.get("total_pirated",0.0)
+                                rd["_piracy_loss_this_turn"]=rr.get("_piracy_loss_this_turn",0.0)
+                                routes2[ii]=rd; break
+                        set_status(f"Route {trade_builder_.route_id} updated.",CYAN)
+                    sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # confirm overlay
+            if confirm_.active:
+                cr=confirm_.on_event(ev)
+                if cr:
+                    cact,cdata=cr; n_c=cur_nation()
+                    if cact=="do_remove_planet" and n_c:
+                        si2,pi2=cdata["si"],cdata["pi"]
+                        sl2=n_c.get("star_systems",[])
+                        if si2<len(sl2) and pi2<len(sl2[si2].get("planets",[])):
+                            sl2[si2]["planets"].pop(pi2)
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Planet removed.",RED_C)
+                    elif cact=="do_remove_district" and n_c:
+                        si2,pi2,sett2,di2=cdata["si"],cdata["pi"],cdata["sett_i"],cdata["di"]
+                        try:
+                            n_c["star_systems"][si2]["planets"][pi2]["settlements"][sett2]["districts"].pop(di2)
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("District removed.",RED_C)
+                        except: pass
+                continue
+
+            # graph overlay
+            if graph_overlay_.active:
+                graph_overlay_.on_event(ev)
+                continue
+
+            # unit builder overlay
+            if unit_builder_.active:
+                ub_r=unit_builder_.on_event(ev)
+                if ub_r=="save":
+                    n_u=cur_nation()
+                    if n_u:
+                        ud=unit_builder_.get_unit_data()
+                        afd2=n_u.setdefault("active_forces_detail",[])
+                        if unit_builder_.mode=="new":
+                            ud["ugid"]=None; afd2.append(ud)
+                            set_status(f"Unit {ud.get('unit','?')} added.",GREEN)
+                        else:
+                            idx2=unit_builder_.unit_idx
+                            if 0<=idx2<len(afd2):
+                                ud["ugid"]=afd2[idx2].get("ugid"); afd2[idx2]=ud
+                                set_status(f"Unit updated.",CYAN)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # eco project overlay
+            if eco_proj_.active:
+                ep_r=eco_proj_.on_event(ev)
+                if ep_r=="save":
+                    n_e=cur_nation()
+                    if n_e:
+                        n_e.setdefault("economic_projects",[]).append(eco_proj_.get_data())
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status("Economic project added.",GOLD)
+                continue
+
+            # casualties overlay
+            if casualties_.active:
+                cas_r=casualties_.on_event(ev)
+                if cas_r=="save":
+                    n_ca=cur_nation()
+                    if n_ca:
+                        n_ca.setdefault("military_deaths",[]).append(casualties_.get_data())
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status("Casualties logged.",RED_C)
+                continue
+
+            # contract builder
+            if contract_builder_.active:
+                _cbr=contract_builder_.on_event(ev)
+                if _cbr=="save":
+                    _nc=cur_nation()
+                    if _nc:
+                        _cd=_nc.setdefault("corporate_data",{}); _contracts=_cd.setdefault("contracts",[])
+                        _d=contract_builder_.get_data()
+                        if contract_builder_.mode=="new": _contracts.append(_d); set_status(f"Contract added: {_d.get('client','?')}.",GREEN)
+                        else:
+                            _idx=contract_builder_.contract_idx
+                            if 0<=_idx<len(_contracts): _contracts[_idx]=_d; set_status("Contract updated.",CYAN)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # location searcher (planet picker)
+            if location_searcher_.active:
+                _lsr=location_searcher_.on_event(ev)
+                if _lsr is not None:
+                    location_builder_.set_location(_lsr[0],_lsr[1])
+                    location_builder_.active=True
+                continue
+
+            # location builder
+            if location_builder_.active:
+                if location_builder_._open_searcher:
+                    location_builder_._open_searcher=False
+                    location_builder_.active=False
+                    location_searcher_.open(sm.state)
+                    continue
+                _lbr=location_builder_.on_event(ev)
+                if _lbr=="save":
+                    _nc=cur_nation()
+                    if _nc:
+                        _cd=_nc.setdefault("corporate_data",{}); _locs=_cd.setdefault("locations",[])
+                        _d=location_builder_.get_data()
+                        if location_builder_.mode=="new": _locs.append(_d); set_status(f"Location added: {_d.get('name','?')}.",GREEN)
+                        else:
+                            _idx=location_builder_.loc_idx
+                            if 0<=_idx<len(_locs): _locs[_idx]=_d; set_status("Location updated.",CYAN)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # shareholder builder
+            if shareholder_builder_.active:
+                _sbr=shareholder_builder_.on_event(ev)
+                if _sbr=="save":
+                    _nc=cur_nation()
+                    if _nc:
+                        _cd=_nc.setdefault("corporate_data",{}); _shs=_cd.setdefault("shareholders",[])
+                        _d=shareholder_builder_.get_data()
+                        if shareholder_builder_.mode=="new": _shs.append(_d); set_status(f"Shareholder added: {_d.get('name','?')}.",GREEN)
+                        else:
+                            _idx=shareholder_builder_.sh_idx
+                            if 0<=_idx<len(_shs): _shs[_idx]=_d; set_status("Shareholder updated.",CYAN)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # corp event builder
+            if corp_event_builder_.active:
+                _cebr=corp_event_builder_.on_event(ev)
+                if _cebr=="save":
+                    _nc=cur_nation()
+                    if _nc:
+                        _cd=_nc.setdefault("corporate_data",{}); _d=corp_event_builder_.get_data(sm.state)
+                        _cd["trust"]=max(0.0,min(1.0,_cd.get("trust",0.5)+_d.get("trust_delta",0.0)))
+                        _cd.setdefault("corp_events",[]).append(_d); set_status(f"Corp event logged: {_d.get('label','?')}.",PURPLE)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            # corp graph overlay
+            if corp_graph_.active:
+                _cgr=corp_graph_.on_event(ev)
+                if _cgr=="export":
+                    _nc=cur_nation()
+                    if _nc: _fp=corp_graph_.export_png(surf,_nc); set_status(f"Graph exported: {_fp}",GREEN)
+                continue
+
+            # event builder
+            if event_builder_.active:
+                _ebr=event_builder_.on_event(ev)
+                if _ebr=="save":
+                    _d=event_builder_.get_data(sm.state)
+                    if event_builder_.mode=="new":
+                        sm.state.setdefault("events_log",[]).append(_d); set_status("Event added.",CYAN)
+                    else:
+                        _ei=event_builder_.ev_idx; _elog=sm.state.get("events_log",[])
+                        if 0<=_ei<len(_elog): _elog[_ei].update(_d); set_status("Event updated.",CYAN)
+                    sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                continue
+
+            if main_.edit.active:
+                result=main_.edit.on_event(ev)
+                if result is not None:
+                    n=cur_nation()
+                    if n and apply_edit(n,main_.edit.meta,result):
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Saved.",GREEN)
+                elif ev.type==pygame.KEYDOWN and ev.key==pygame.K_ESCAPE: main_.edit.close()
+                continue
+
+            if ev.type==pygame.KEYDOWN:
+                if ev.key==pygame.K_BACKQUOTE: gm_console.open(); continue
+                if ev.key==pygame.K_c:
+                    _nc2=cur_nation()
+                    if _nc2 and (_nc2.get("is_megacorp") or "corporate_data" in _nc2):
+                        _tabs_c2=get_tabs(_nc2)
+                        if "CORP" in _tabs_c2:
+                            tab_idx=_tabs_c2.index("CORP"); load_nation(sel_idx); set_status("CORP tab (C).",GOLD)
+                elif ev.key==pygame.K_s: sm.save(); set_status("Saved with backup rotation.",GREEN)
+                elif ev.key==pygame.K_d: do_discord()
+                elif ev.key in (pygame.K_UP,pygame.K_LEFT): load_nation(sel_idx-1)
+                elif ev.key in (pygame.K_DOWN,pygame.K_RIGHT): load_nation(sel_idx+1)
+                elif ev.key==pygame.K_TAB:
+                    tabs=cur_tabs(); tab_idx2=(tab_idx+1)%len(tabs)
+                    # we need nonlocal tab_idx
+                    pass
+                elif pygame.K_1<=ev.key<=pygame.K_8:
+                    pass  # handled in second key block below
+
+            # handle tab_idx changes cleanly
+            if ev.type==pygame.KEYDOWN:
+                tabs=cur_tabs()
+                if ev.key==pygame.K_TAB:
+                    tab_idx=(tab_idx+1)%len(tabs); load_nation(sel_idx)
+                elif pygame.K_1<=ev.key<=pygame.K_8:
+                    ti=ev.key-pygame.K_1
+                    if 0<=ti<len(tabs): tab_idx=ti; load_nation(sel_idx)
+
+            if ev.type==pygame.MOUSEBUTTONDOWN and ev.button==1:
+                tabs=cur_tabs()
+                if LWIDTH<=ev.pos[0]<SW and TBAR_H<=ev.pos[1]<TBAR_H+TABBAR_H:
+                    w=(SW-LWIDTH)//len(tabs); ti=(ev.pos[0]-LWIDTH)//w
+                    if 0<=ti<len(tabs): tab_idx=ti; load_nation(sel_idx)
+                # galactic subtab bar click
+                if tabs[tab_idx]=="GALACTIC" and MAIN_X<=ev.pos[0]<MAIN_X+MAIN_W and MAIN_Y<=ev.pos[1]<MAIN_Y+GSUB_H:
+                    sw=120; si=(ev.pos[0]-MAIN_X-4)//sw
+                    if 0<=si<len(GALACTIC_SUBS):
+                        galactic_sub_idx=si; load_nation(sel_idx)
+
+            clicked=left.on_event(ev)
+            if clicked is not None: load_nation(clicked)
+            if left.btn_minus.on_event(ev): left.adv_n=max(1,left.adv_n-1)
+            if left.btn_plus.on_event(ev): left.adv_n=min(20,left.adv_n+1)
+            if left.btn_adv.on_event(ev):
+                evs=advance_turns(sm,left.adv_n); names2=sm.nation_names()
+                names.clear(); names.extend(names2)
+                left.set_nations(names,sel_idx,sm.state); load_nation(sel_idx)
+                t=sm.state.get("turn",1); y=sm.state.get("year",2200); q=sm.state.get("quarter",1)
+                set_status(f"Advanced {left.adv_n}t -> T{t} {y}Q{q}  |  {len(evs)} events",GOLD)
+            if left.btn_save.on_event(ev): sm.save(); set_status("Saved.",GREEN)
+            if left.btn_disc.on_event(ev): do_discord()
+            main_.on_event(ev)
+            row=main_.on_click(ev)
+            if row:
+                if row["type"]=="collapse":
+                    key=row["key"]
+                    if key in main_.collapsed_keys: main_.collapsed_keys.discard(key)
+                    else: main_.collapsed_keys.add(key)
+                    load_nation(sel_idx)
+                elif row["type"]=="btn":
+                    action=row["action"]; data=row.get("data",{}); n=cur_nation()
+                    if action=="set_econ_model" and n:
+                        model=data.get("model","MIXED"); n["economic_model"]=model
+                        n["is_colony_start"]=(model=="COLONY_START")
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status(f"Economic model set to {model}.",CYAN)
+                    elif action=="add_system" and n:
+                        add_system(n); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("New system added.",GREEN)
+                    elif action=="add_planet" and n:
+                        sl=n.get("star_systems",[]); si=data.get("si",0)
+                        if si<len(sl): add_planet(sl[si],n.get("population",0)); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Planet added + randomized.",GREEN)
+                    elif action=="add_platform" and n:
+                        si=data.get("si",0); pi=data.get("pi",0); ptype=data.get("ptype","Mining")
+                        sl=n.get("star_systems",[])
+                        if si<len(sl):
+                            pl=sl[si].get("planets",[])
+                            if pi<len(pl): add_platform(pl[pi],ptype); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status(f"{ptype} platform added.",PURPLE)
+                    elif action=="build_district" and n:
+                        si=data.get("si",0); pi=data.get("pi",0); si2=data.get("sett_i",0); dt=data.get("district_type","Urban")
+                        ok,msg=queue_construction(n,si,pi,si2,dt,sm.state)
+                        sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                        set_status(msg, GREEN if ok else RED_C)
+                    elif action=="randomize_planet" and n:
+                        si=data.get("si",0); pi=data.get("pi",0); sl=n.get("star_systems",[])
+                        if si<len(sl):
+                            pl=sl[si].get("planets",[])
+                            if pi<len(pl): randomize_planet(pl[pi],n.get("population",0)); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Planet randomized.",PURPLE)
+                    elif action=="confirm_remove_planet" and n:
+                        si2=data.get("si",0); pi2=data.get("pi",0)
+                        try: pname=n["star_systems"][si2]["planets"][pi2].get("name","?")
+                        except: pname="?"
+                        confirm_.open(f"Remove planet {pname}?","do_remove_planet",data)
+                    elif action=="confirm_remove_district" and n:
+                        si2,pi2,sett2,di2=data.get("si",0),data.get("pi",0),data.get("sett_i",0),data.get("di",0)
+                        try: dtype=n["star_systems"][si2]["planets"][pi2]["settlements"][sett2]["districts"][di2].get("type","?")
+                        except: dtype="?"
+                        confirm_.open(f"Remove {dtype} district?","do_remove_district",data)
+                    elif action=="open_trade_builder":
+                        trade_builder_.open_new(sm.nation_names())
+                    elif action=="edit_trade_route":
+                        rid=data.get("route_id")
+                        route_obj=next((r for r in sm.state.get("trade_routes",[]) if r.get("id")==rid),None)
+                        if route_obj: trade_builder_.open_edit(route_obj,sm.nation_names())
+                    elif action=="open_graphs":
+                        graph_overlay_.open()
+                    elif action=="open_unit_builder" and n:
+                        ugroups2=n.get("unit_groups") or []
+                        unit_builder_.open_new(sm.nation_names(),ugroups2)
+                    elif action=="edit_unit" and n:
+                        idx2=data.get("unit_idx",0); afd2=n.get("active_forces_detail",[]) or []
+                        if 0<=idx2<len(afd2):
+                            unit_builder_.open_edit(afd2[idx2],idx2,sm.nation_names(),n.get("unit_groups") or [])
+                    elif action=="open_eco_project":
+                        eco_proj_.open()
+                    elif action=="remove_eco_project" and n:
+                        epi2=data.get("epi",0); ep2=n.get("economic_projects") or []
+                        if 0<=epi2<len(ep2):
+                            ep2.pop(epi2); n["economic_projects"]=ep2
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Project removed.",RED_C)
+                    elif action=="open_casualties" and n:
+                        sp_names=[s["name"] for s in (n.get("species_populations") or [])]
+                        casualties_.open(sp_names)
+                    elif action=="end_corp_contract" and n:
+                        ci2=data.get("ci",0); contracts2=n.get("corporate_data",{}).get("contracts") or []
+                        if 0<=ci2<len(contracts2):
+                            contracts2[ci2]["status"]="ended"
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Contract ended.",RED_C)
+                    elif action=="open_corp_contract":
+                        contract_builder_.open_new()
+                    elif action=="edit_corp_contract" and n:
+                        _ci2=data.get("ci",0); _contracts2=n.get("corporate_data",{}).get("contracts") or []
+                        if 0<=_ci2<len(_contracts2): contract_builder_.open_edit(_contracts2[_ci2],_ci2)
+                    elif action=="open_new_location" and n:
+                        location_builder_.open_new(n.get("base_ipeu",0.0))
+                    elif action=="edit_location" and n:
+                        _li2=data.get("li",0); _locs2=n.get("corporate_data",{}).get("locations") or []
+                        if 0<=_li2<len(_locs2): location_builder_.open_edit(_locs2[_li2],_li2)
+                    elif action=="remove_location" and n:
+                        _li2=data.get("li",0); _locs2=n.get("corporate_data",{}).get("locations") or []
+                        if 0<=_li2<len(_locs2): _locs2.pop(_li2); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Location removed.",RED_C)
+                    elif action=="open_add_shareholder":
+                        shareholder_builder_.open_new()
+                    elif action=="remove_shareholder" and n:
+                        _si2=data.get("si",0); _shs2=n.get("corporate_data",{}).get("shareholders") or []
+                        if 0<=_si2<len(_shs2): _shs2.pop(_si2); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Shareholder removed.",RED_C)
+                    elif action=="open_corp_event_log":
+                        corp_event_builder_.open()
+                    elif action=="remove_corp_event" and n:
+                        _ri=data.get("cevi",0); _cevs=n.get("corporate_data",{}).get("corp_events") or []
+                        if 0<=_ri<len(_cevs): _cevs.pop(_ri); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Corp event removed.",RED_C)
+                    elif action=="open_corp_graph":
+                        corp_graph_.open()
+                    elif action=="approve_event":
+                        _ei2=data.get("ei",0); _elog2=sm.state.get("events_log",[])
+                        if 0<=_ei2<len(_elog2):
+                            _elog2[_ei2]["approved"]=not _elog2[_ei2].get("approved",False)
+                            sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status("Event approval toggled.",GOLD)
+                    elif action=="edit_event":
+                        _ei2=data.get("ei",0); _elog2=sm.state.get("events_log",[])
+                        if 0<=_ei2<len(_elog2): event_builder_.open_edit(_elog2[_ei2],_ei2)
+                    elif action=="remove_event":
+                        _ei2=data.get("ei",0); _elog2=sm.state.get("events_log",[])
+                        if 0<=_ei2<len(_elog2): _elog2.pop(_ei2); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx); set_status("Event removed.",RED_C)
+                    elif action=="open_add_event":
+                        event_builder_.open_new(data.get("nation",""))
+                    elif action=="roll_events":
+                        n2=sm.get_nation(data.get("nation",""))
+                        if n2:
+                            if is_colony(n2):
+                                evs=roll_colony_events(n2,sm.state)+roll_civic_events(n2,sm.state)
+                            else:
+                                evs=roll_civic_events(n2,sm.state)+roll_planetside_events(n2,sm.state)+roll_resource_events(n2,sm.state)
+                            sm.state.setdefault("events_log",[]).extend(evs); sm.mark_dirty(); sm.autosave(); load_nation(sel_idx)
+                            set_status(f"Rolled {len(evs)} events for {data.get('nation','?')}.",GOLD)
+                elif row.get("meta"): main_.edit.open(row["label"],row["val"],row["meta"])
+
+        surf.fill(BG)
+        turn=sm.state.get("turn",1); year=sm.state.get("year",2200); quarter=sm.state.get("quarter",1)
+        tabs=cur_tabs()
+        draw_top_bar(surf,names[sel_idx] if names else "N/A",turn,year,quarter,sm.dirty)
+        draw_tab_bar(surf,tab_idx,tabs); left.draw(surf,turn,year,quarter); main_.draw(surf)
+        if tabs[tab_idx]=="GALACTIC": draw_galactic_subtab_bar(surf,galactic_sub_idx)
+        main_.edit.draw(surf,dt)
+        unit_builder_.draw(surf,dt)
+        eco_proj_.draw(surf,dt)
+        casualties_.draw(surf,dt)
+        graph_overlay_.draw(surf,sm.state)
+        trade_builder_.draw(surf,dt)
+        confirm_.draw(surf,dt)
+        contract_builder_.draw(surf,dt)
+        location_builder_.draw(surf,dt)
+        location_searcher_.draw(surf)
+        shareholder_builder_.draw(surf,dt)
+        corp_event_builder_.draw(surf,dt)
+        corp_graph_.draw(surf,cur_nation())
+        event_builder_.draw(surf,dt)
+        gm_console.draw(surf,dt)
+        draw_status_bar(surf); pygame.display.flip()
+    pygame.quit()
+
+if __name__=="__main__":
+    main()
