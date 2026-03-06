@@ -31,8 +31,7 @@ When editing conscription % in species
 IndexError: list index out of range
 
 
-0.6.1 
-
+(Before 0.6.1) -> 0.6.7.8 
 Features
 - Make a main menu, and select, edit nations to view nations
 - Galactic Trade Confederation, as Galactic Creditor, currently Regnum Dei pays them and has a debt of 6 T since T1
@@ -51,3 +50,34 @@ RESEARCH TACKLE
 Research Tech Tree
 Research Custom Tech
 - Ship/Aircraft Unit Creator
+
+
+Ship
+```
+Speed:
+Components:
+Hull: 
+Size:
+Armor:
+Hull Type: T0
+Fire Control System:
+Complement:
+- 25% Officers
+- 50% Crew
+- 25% Marines
+
+Engine: 
+Drive:
+
+Armaments (Give Defaults)
+- N mm 
+```
+
+Aircraft
+```
+Speed
+Range: (Turns until Refuel)
+
+Armament:
+- N mm
+```
