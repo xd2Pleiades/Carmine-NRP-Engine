@@ -56,7 +56,7 @@ Ship
 ```
 Speed:
 Components:
-Hull: 
+Hull: HP
 Size:
 Armor:
 Hull Type: T0
@@ -77,6 +77,7 @@ Aircraft
 ```
 Speed
 Range: (Turns until Refuel)
+HP:
 
 Armament:
 - N mm
